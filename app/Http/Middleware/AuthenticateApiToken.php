@@ -15,10 +15,18 @@ class AuthenticateApiToken
         $token = preg_match('/^(?:Bearer|Token)\s+(.+)$/i', $header, $matches) ? $matches[1] : null;
 
         if ($token) {
-            $record = ApiToken::query()->with('user')->where('token', hash('sha256', $token))->first();
-            if ($record && $record->user && $record->user->is_active) {
-                $record->forceFill(['last_used_at' => now()])->save();
-                $request->setUserResolver(fn () => $record->user);
+            if (str_contains($token, '|')) {
+                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                if ($pat && $pat->tokenable && $pat->tokenable->is_active) {
+                    $pat->forceFill(['last_used_at' => now()])->save();
+                    $request->setUserResolver(fn () => $pat->tokenable);
+                }
+            } else {
+                $record = ApiToken::query()->with('user')->where('token', hash('sha256', $token))->first();
+                if ($record && $record->user && $record->user->is_active) {
+                    $record->forceFill(['last_used_at' => now()])->save();
+                    $request->setUserResolver(fn () => $record->user);
+                }
             }
         }
 

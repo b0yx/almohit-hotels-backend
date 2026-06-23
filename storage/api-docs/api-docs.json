@@ -1,0 +1,37 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Almohit Hotels API",
+        "description": "RESTful API for Almohit Hotels platform. Provides hotel listings, room types, bookings, reviews, services, and image management with role-based access control.",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/health/": {
+            "get": {
+                "summary": "Health check",
+                "operationId": "17294a65f9eb37f5366dcdcfa0b302c7",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "servers": [
+                    {
+                        "url": "http://localhost:8000",
+                        "description": "Local development"
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "description": "Token returned from /api/auth/login/ as access field.",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    }
+}
