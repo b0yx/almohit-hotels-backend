@@ -32,3 +32,5 @@ Homestead.yaml
 Thumbs.db
 /nixpacks/
 .DS_Store?
+/storage/framework/views/*.php
+.php-cs-fixer.cache

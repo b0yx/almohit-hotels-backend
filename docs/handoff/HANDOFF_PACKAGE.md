@@ -13,12 +13,7 @@
 | 2 | `OPENAPI_SPEC.json` | JSON version for tool imports |
 | 3 | `POSTMAN_COLLECTION.json` | Postman v2.1 collection (84 endpoints, 11 folders) |
 | 4 | `FRONTEND_HANDOFF.md` | General frontend integration guide |
-| 5 | `NEXTJS_MVP_HANDOFF.md` | MVP-scoped handoff (auth, hotels, rooms, bookings, reviews only) |
-| 6 | `MVP_SCOPE_REPORT.md` | Full scope audit (models, controllers, routes) |
-| 7 | `DEMO_ACCOUNTS.md` | Demo credentials + usage guide |
-| 8 | `NEXTJS.env.example` | Next.js environment template |
-| 9 | `FINAL_BACKEND_AUDIT.md` | Security 78/100, Performance 82/100, Completeness 90% |
-| 10 | `BACKEND_FREEZE_REPORT.md` | Freeze verification (23 models, 0 stubs, 0 bugs) |
+| 5 | `NEXTJS.env.example` | Next.js environment template |
 
 ---
 
