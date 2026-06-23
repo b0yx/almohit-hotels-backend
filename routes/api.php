@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
+if (! function_exists('imageRoutes')) {
 function imageRoutes(string $type): void
 {
     $c = ImageUploadController::class;
@@ -30,6 +31,7 @@ function imageRoutes(string $type): void
         Route::patch('{id}', [$c, 'update'])->whereNumber('id');
         Route::delete('{id}', [$c, 'destroy'])->whereNumber('id');
     });
+}
 }
 
 Route::middleware(['tenant.context', 'api.token'])->group(function () {
