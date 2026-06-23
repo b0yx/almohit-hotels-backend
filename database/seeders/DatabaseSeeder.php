@@ -49,8 +49,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($accounts as $data) {
-            $password = $data['password'];
-            unset($data['password']);
+            $data['password'] = bcrypt($data['password']);
 
             $user = User::query()->firstOrCreate(
                 ['email' => $data['email']],
@@ -58,7 +57,6 @@ class DatabaseSeeder extends Seeder
             );
 
             if ($user->wasRecentlyCreated) {
-                $user->forceFill(['password' => $password])->save();
                 EmailOTP::query()->create([
                     'user_id' => $user->id,
                     'hashed_code' => bcrypt('123456'),

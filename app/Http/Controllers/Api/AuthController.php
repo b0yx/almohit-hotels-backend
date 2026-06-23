@@ -7,6 +7,7 @@ use App\Models\ApiToken;
 use App\Models\EmailOTP;
 use App\Models\User;
 use App\Support\CompatResponse;
+use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -59,13 +60,25 @@ class AuthController extends Controller
     public function verifyOtp(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email'], 'code' => ['required', 'string', 'size:6']]);
-        $user = User::query()->where('email', strtolower($data['email']))->first();
+        $email = strtolower($data['email']);
+
+        $limiter = app(RateLimiter::class);
+        $otpKey = 'otp-attempt:'.$email;
+
+        if ($limiter->tooManyAttempts($otpKey, 5)) {
+            $seconds = $limiter->availableIn($otpKey);
+            return response()->json(['detail' => 'Too many attempts. Try again in '.$seconds.' seconds.', 'code' => 'otp_locked'], 429);
+        }
+
+        $user = User::query()->where('email', $email)->first();
         $otp = $user ? EmailOTP::query()->where('user_id', $user->id)->whereNull('verified_at')->latest()->first() : null;
 
         if (! $user || ! $otp || $otp->expires_at->isPast() || ! Hash::check($data['code'], $otp->hashed_code)) {
+            $limiter->hit($otpKey, 900);
             return response()->json(['detail' => 'Invalid verification code.', 'code' => 'invalid_otp'], 400);
         }
 
+        $limiter->clear($otpKey);
         $otp->forceFill(['verified_at' => now()])->save();
         $user->forceFill(['email_verified' => true, 'is_active' => true])->save();
 
@@ -75,7 +88,17 @@ class AuthController extends Controller
     public function resendOtp(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email']]);
-        $user = User::query()->where('email', strtolower($data['email']))->where('email_verified', false)->first();
+        $email = strtolower($data['email']);
+
+        $limiter = app(RateLimiter::class);
+        $resendKey = 'otp-resend:'.$email;
+
+        if ($limiter->tooManyAttempts($resendKey, 3)) {
+            $seconds = $limiter->availableIn($resendKey);
+            return response()->json(['detail' => 'Too many resend requests. Try again in '.$seconds.' seconds.', 'code' => 'resend_locked'], 429);
+        }
+
+        $user = User::query()->where('email', $email)->where('email_verified', false)->first();
         if ($user) {
             $code = (string) random_int(100000, 999999);
             EmailOTP::query()->create([
@@ -84,6 +107,8 @@ class AuthController extends Controller
                 'expires_at' => now()->addMinutes(10),
             ]);
         }
+
+        $limiter->hit($resendKey, 60);
 
         return response()->json(['detail' => 'A new verification code has been sent.']);
     }

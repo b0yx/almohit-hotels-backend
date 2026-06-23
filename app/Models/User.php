@@ -50,7 +50,7 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return (bool) $this->is_staff || $this->role === self::ROLE_ADMIN;
+        return $this->role === self::ROLE_ADMIN && (bool) $this->is_active;
     }
 
     public function isStaffRole(): bool
