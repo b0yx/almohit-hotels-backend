@@ -48,6 +48,7 @@ class CompatResponse
             'is_staff' => (bool) $user->is_staff,
             'is_active' => (bool) $user->is_active,
             'email_verified' => (bool) $user->email_verified,
+            'permissions' => PermissionService::getPermissions($user),
             'created_at' => optional($user->created_at)->toJSON(),
         ];
     }

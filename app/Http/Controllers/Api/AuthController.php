@@ -137,16 +137,22 @@ class AuthController extends Controller
             return response()->json(['detail' => 'Customer account required.'], 403);
         }
 
+        $sanctumToken = $user->createToken('auth_token')->plainTextToken;
         $plain = Str::random(64);
         ApiToken::query()->create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
 
+        $userResponse = CompatResponse::user($user);
+        $userResponse['name'] = $user->full_name;
+
         return response()->json([
-            'token' => $plain,
+            'success' => true,
+            'message' => 'Login successful',
+            'token' => $sanctumToken,
             'access' => $plain,
             'token_type' => 'Bearer',
             'role' => $user->isAdmin() ? 'admin' : $user->role,
             'redirect_url' => $user->isAdmin() ? config('almohit.frontend_admin_url') : config('almohit.frontend_customer_url'),
-            'user' => CompatResponse::user($user),
+            'user' => $userResponse,
         ]);
     }
 
@@ -188,7 +194,15 @@ class AuthController extends Controller
     {
         $header = (string) $request->header('Authorization', '');
         if (preg_match('/^(?:Bearer|Token)\s+(.+)$/i', $header, $matches)) {
-            ApiToken::query()->where('token', hash('sha256', $matches[1]))->delete();
+            $token = $matches[1];
+            if (str_contains($token, '|')) {
+                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                if ($pat) {
+                    $pat->delete();
+                }
+            } else {
+                ApiToken::query()->where('token', hash('sha256', $token))->delete();
+            }
         }
 
         return response()->json(null, 204);
