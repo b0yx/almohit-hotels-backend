@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Hotel;
 use App\Models\HotelImage;
+use App\Models\HotelService;
+use App\Models\RoomType;
 use App\Models\RoomTypeImage;
 use App\Models\ServiceImage;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +72,20 @@ class ImageUploadController extends Controller
     public function store(Request $request): JsonResponse
     {
         $cfg = $this->config();
+        $user = $request->user();
+
+        if ($user && ! $user->isAdmin()) {
+            $parentId = (int) $request->input($cfg['request_key']);
+            $hasAccess = match ($cfg['dir']) {
+                'hotels' => Hotel::query()->whereKey($parentId)->whereHas('assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
+                'room-types' => RoomType::query()->whereKey($parentId)->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
+                'services' => HotelService::query()->whereKey($parentId)->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
+                default => false,
+            };
+            if (! $hasAccess) {
+                return response()->json(['detail' => 'You do not have permission to upload images for this resource.'], 403);
+            }
+        }
 
         $request->merge($this->normalizeBooleans($request, ['is_cover', 'is_active']));
 

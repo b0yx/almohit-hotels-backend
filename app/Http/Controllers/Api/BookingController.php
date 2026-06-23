@@ -147,15 +147,23 @@ class BookingController extends CrudController
         ], 201);
     }
 
-    public function calendar(Request $request): JsonResponse
-    {
-        return $this->index($request);
-    }
-
     public function confirm(Request $request): JsonResponse
     {
         $data = $request->validate(['booking_id' => ['required', 'exists:booking_inquiries,id']]);
         $booking = BookingInquiry::query()->findOrFail($data['booking_id']);
+        $user = $request->user();
+
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            return response()->json(['detail' => 'You do not have permission to confirm bookings.'], 403);
+        }
+
+        if ($user->isStaffRole() && ! $user->isAdmin()) {
+            $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
+            if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to confirm this booking.'], 403);
+            }
+        }
+
         $booking->forceFill(['status' => 'confirmed'])->save();
 
         return response()->json([
@@ -169,6 +177,20 @@ class BookingController extends CrudController
     public function cancel(int $id): JsonResponse
     {
         $booking = BookingInquiry::query()->findOrFail($id);
+        $user = request()->user();
+
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication required.'], 401);
+        }
+
+        if (! $user->isAdmin()) {
+            $isOwner = (int) $booking->customer_id === (int) $user->id;
+            $isAssignedStaff = $user->isStaffRole() && $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
+            if (! $isOwner && ! $isAssignedStaff) {
+                return response()->json(['detail' => 'You do not have permission to cancel this booking.'], 403);
+            }
+        }
+
         $booking->forceFill(['status' => 'cancelled'])->save();
 
         return response()->json(CompatResponse::booking($booking->fresh(['hotel', 'roomType', 'guests'])));

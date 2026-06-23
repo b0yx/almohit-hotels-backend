@@ -7,7 +7,6 @@ use App\Support\CompatResponse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class CrudController extends Controller
 {
@@ -164,8 +163,6 @@ class CrudController extends Controller
             }
         }
 
-        unset($input['amenity_ids'], $input['amenities'], $input['guests']);
-
         return $input;
     }
 
@@ -210,12 +207,4 @@ class CrudController extends Controller
         }
     }
 
-    protected function ensureSlug(array $data): array
-    {
-        if (! isset($data['slug']) && isset($data['name'])) {
-            $data['slug'] = Str::slug($data['name']);
-        }
-
-        return $data;
-    }
 }

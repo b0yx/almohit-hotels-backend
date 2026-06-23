@@ -64,12 +64,12 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/public/hotel-context/', [HotelController::class, 'publicContext']);
 
     Route::prefix('auth')->group(function () {
-        Route::post('/signup/', [AuthController::class, 'signup']);
-        Route::post('/verify-otp/', [AuthController::class, 'verifyOtp']);
-        Route::post('/resend-otp/', [AuthController::class, 'resendOtp']);
-        Route::post('/login/', [AuthController::class, 'login']);
-        Route::post('/admin/login/', [AuthController::class, 'adminLogin']);
-        Route::post('/customer/login/', [AuthController::class, 'customerLogin']);
+        Route::post('/signup/', [AuthController::class, 'signup'])->middleware('throttle:5,30');
+        Route::post('/verify-otp/', [AuthController::class, 'verifyOtp'])->middleware('throttle:10,15');
+        Route::post('/resend-otp/', [AuthController::class, 'resendOtp'])->middleware('throttle:3,60');
+        Route::post('/login/', [AuthController::class, 'login'])->middleware('throttle:10,15');
+        Route::post('/admin/login/', [AuthController::class, 'adminLogin'])->middleware('throttle:10,15');
+        Route::post('/customer/login/', [AuthController::class, 'customerLogin'])->middleware('throttle:10,15');
         Route::get('/me/', [AuthController::class, 'me']);
         Route::patch('/me/', [AuthController::class, 'updateMe']);
         Route::post('/logout/', [AuthController::class, 'logout']);
@@ -100,7 +100,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
 
     Route::apiResource('bookings', BookingController::class)->parameters(['bookings' => 'id']);
-    Route::get('/bookings/calendar/', [BookingController::class, 'calendar']);
+    Route::get('/bookings/calendar/', [BookingController::class, 'index']);
     Route::post('/bookings/inquiry/', [BookingController::class, 'inquiry']);
     Route::post('/bookings/confirm/', [BookingController::class, 'confirm']);
     Route::post('/bookings/{id}/cancel/', [BookingController::class, 'cancel']);

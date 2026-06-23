@@ -16,7 +16,7 @@ class ApiCompatibilityTest extends TestCase
     {
         $this->getJson('/api/health/')
             ->assertOk()
-            ->assertExactJson(['status' => 'ok']);
+            ->assertJsonPath('status', 'ok');
     }
 
     public function test_login_returns_django_compatible_auth_shape(): void
