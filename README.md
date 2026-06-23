@@ -1,58 +1,236 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Almohit Hotels API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+RESTful API for the Almohit Hotels booking platform — a Laravel 13 backend powering hotel listings, room management, booking reservations, guest reviews, and image handling with role-based access control.
 
-## About Laravel
+Built as a migration from Django REST Framework to Laravel with full endpoint parity, PostgreSQL persistence, and Sanctum-style token authentication.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Authentication** — Email signup, OTP verification, login/logout, role-based tokens (customer, staff, admin)
+- **Hotels** — Property CRUD, publish/unpublish workflow, readiness validation, setup wizard, subdomain-based multi-tenancy
+- **Rooms** — Room types, seasonal pricing, availability blocks, date-range availability queries
+- **Bookings** — Public inquiry (no auth required), staff confirmation, customer cancellation, guest management
+- **Reviews** — Public submission, staff moderation, aggregated rating summaries
+- **Images** — Multipart uploads for property, room, and service images with primary image support
+- **Admin** — User management, role assignment, audit logs, contact message handling
+- **API Docs** — OpenAPI 3.0.3 spec, Postman collection, frontend integration guide
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Architecture
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+┌──────────────────────────────────────────────────────┐
+│                    Next.js Frontend                    │
+│                   (coming soon — see docs/)            │
+└──────────────────────┬───────────────────────────────┘
+                       │ HTTPS / JSON (snake_case)
+                       │ Authorization: Bearer <token>
+                       ▼
+┌──────────────────────────────────────────────────────┐
+│              Laravel REST API (this repo)              │
+│  PHP 8.3+ │ Laravel 13 │ PostgreSQL │ Sanctum tokens  │
+├──────────────────────────────────────────────────────┤
+│  app/                                                    │
+│  ├── Http/Controllers/Api/    ← Controller layer       │
+│  ├── Models/                  ← Eloquent models (23)   │
+│  ├── Http/Middleware/         ← Auth, tenant, role     │
+│  └── Support/                 ← Compat response layer  │
+│  routes/api.php               ← 71+ API endpoints     │
+└──────────────────────────────────────────────────────┘
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## Requirements
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- PHP 8.3+
+- Composer 2.x
+- PostgreSQL 15+
+- Node.js 20+ (for Vite asset building, optional for API-only)
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Installation
 
-## Security Vulnerabilities
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-org/almohit-hotels-laravel.git
+cd almohit-hotels-laravel
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 2. Install PHP dependencies
+composer install
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your database credentials
+
+# 4. Generate application key
+php artisan key:generate
+
+# 5. Run migrations
+php artisan migrate
+
+# 6. (Optional) Seed demo accounts
+php artisan db:seed
+
+# 7. Start the development server
+php artisan serve
+```
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_ENV` | `local` | Application environment |
+| `APP_DEBUG` | `true` | Enable debug mode |
+| `APP_URL` | `http://localhost` | Application URL |
+| `DB_CONNECTION` | `pgsql` | Database driver |
+| `DB_HOST` | `127.0.0.1` | Database host |
+| `DB_PORT` | `5432` | Database port |
+| `DB_DATABASE` | `almohit_hotels` | Database name |
+| `DB_USERNAME` | `postgres` | Database user |
+| `DB_PASSWORD` | — | Database password |
+| `CACHE_STORE` | `array` | Cache driver |
+| `SESSION_DRIVER` | `array` | Session driver (API-only) |
+| `FILESYSTEM_DISK` | `local` | File storage disk |
+| `QUEUE_CONNECTION` | `sync` | Queue driver |
+
+See `.env.example` for the complete list.
+
+---
+
+## Running Locally
+
+```bash
+# Start the API server
+php artisan serve
+
+# Run queue worker (for async jobs)
+php artisan queue:listen
+
+# Run tests
+php artisan test
+```
+
+The API will be available at `http://localhost:8000/api/`.
+
+---
+
+## Demo Accounts
+
+Run `php artisan db:seed` to create test accounts:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@almohit.com` | `adminpass123` |
+| Staff | `staff@almohit.com` | `staffpass123` |
+| Customer | `customer@almohit.com` | `customerpass123` |
+
+---
+
+## API Documentation
+
+| Resource | Location | Description |
+|----------|----------|-------------|
+| **OpenAPI Spec (YAML)** | `docs/OPENAPI_SPEC.yaml` | Full API specification |
+| **OpenAPI Spec (JSON)** | `docs/OPENAPI_SPEC.json` | JSON version |
+| **Postman Collection** | `docs/POSTMAN_COLLECTION.json` | Pre-built API collection |
+| **Frontend Integration** | `docs/FRONTEND_HANDOFF.md` | Auth flow, pagination, error handling patterns |
+| **MVP Handoff** | `docs/NEXTJS_MVP_HANDOFF.md` | MVP-scoped endpoint guide |
+| **Postman** | Import `docs/POSTMAN_COLLECTION.json` into Postman for all 84 endpoints |
+
+### Quick Start
+
+```bash
+# Health check
+curl http://localhost:8000/api/health/
+
+# Signup
+curl -X POST http://localhost:8000/api/auth/signup/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"SecurePass123!","full_name":"John"}'
+
+# Login
+curl -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@almohit.com","password":"adminpass123"}'
+
+# Browse hotels (paginated)
+curl http://localhost:8000/api/properties/available/?page=1&page_size=10
+```
+
+### Key API Patterns
+
+| Pattern | Detail |
+|---------|--------|
+| **Base URL** | `http://localhost:8000/api/` |
+| **Auth** | `Authorization: Bearer <token>` |
+| **Response format** | JSON, snake_case keys |
+| **Pagination** | `{ count, next, previous, results }` |
+| **Errors** | `{ detail, code }` |
+| **Page size** | Default 20, max 100 (`?page_size=N`) |
+
+---
+
+## Deployment
+
+Deployment guides are available in:
+
+- `docs/DEPLOYMENT.md` — Railway deployment guide (coming soon after initial setup)
+- Standard Laravel deployment to any PHP 8.3+ host with PostgreSQL
+
+### Deploying to Railway
+
+```bash
+# Railway auto-detects PHP from composer.json
+# Set environment variables in Railway dashboard:
+#   APP_KEY, DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# Run migrations after deploy:
+#   php artisan migrate --force
+```
+
+---
+
+## Project Structure
+
+```
+├── app/
+│   ├── Http/Controllers/Api/     ← API controllers
+│   ├── Http/Middleware/               ← Auth, role, tenant middleware
+│   └── Models/                    ← Eloquent models (23)
+├── config/                        ← Configuration files
+├── database/
+│   ├── migrations/                ← Database migrations
+│   └── seeders/                   ← Demo data seeders
+├── docs/                          ← Documentation
+│   ├── archive/                   ← Internal/AI-generated audit reports
+│   ├── FRONTEND_HANDOFF.md
+│   ├── NEXTJS_MVP_HANDOFF.md
+│   ├── OPENAPI_SPEC.yaml
+│   └── POSTMAN_COLLECTION.json
+├── routes/
+│   └── api.php                    ← API route definitions
+├── storage/                       ← Logs, cache, uploaded files
+├── tests/                         ← PHPUnit test suite
+├── .env.example                   ← Environment template
+└── composer.json                  ← PHP dependencies
+```
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is open-sourced software licensed under the [MIT license](LICENSE).
+
+---
+
+## Contributing
+
+This is an active project. For feature requests or bug reports, please open an issue on GitHub.
+
+For the frontend (Next.js) integration, refer to `docs/FRONTEND_HANDOFF.md` and `docs/NEXTJS_MVP_HANDOFF.md`.

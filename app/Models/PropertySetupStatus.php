@@ -5,17 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ServiceImage extends Model
+class PropertySetupStatus extends Model
 {
     protected $guarded = ['id'];
 
     protected function casts(): array
     {
-        return ['is_cover' => 'boolean', 'is_active' => 'boolean'];
+        return [
+            'autosaved_at' => 'datetime',
+        ];
     }
 
-    public function service(): BelongsTo
+    public function hotel(): BelongsTo
     {
-        return $this->belongsTo(HotelService::class, 'hotel_service_id');
+        return $this->belongsTo(Hotel::class);
     }
 }

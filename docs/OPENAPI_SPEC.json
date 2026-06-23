@@ -1,0 +1,3765 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Almohit Hotels API",
+    "description": "RESTful API for Almohit Hotels platform. Provides hotel listings, room types,\nbookings, reviews, services, and image management with role-based access control.\n\n**Auth:** Bearer token via `Authorization: Bearer <token>` header.\n**Tenant:** Subdomain via `X-Hotel-Subdomain` header or hostname.\n**Pagination:** DRF-compatible `{ count, next, previous, results }`.\n**Errors:** snake_case JSON `{ detail, code }`.\n",
+    "version": "1.0.0",
+    "contact": {
+      "email": "dev@almohit.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development"
+    },
+    {
+      "url": "https://your-app.laravel.cloud",
+      "description": "Production"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Accepts both `Bearer <token>` and `Token <token>` formats.\nToken returned from `/api/auth/login/` as `access` field.\n"
+      }
+    },
+    "parameters": {
+      "PageParam": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "description": "Page number for pagination"
+      },
+      "PageSizeParam": {
+        "name": "page_size",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "description": "Number of results per page"
+      },
+      "SearchParam": {
+        "name": "search",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Search across name, email, customer_name, subject"
+      },
+      "HotelSubdomainHeader": {
+        "name": "X-Hotel-Subdomain",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resolve public hotel context (e.g. \"demo\" for demo.almohit.com)",
+        "required": false
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "detail": "Invalid email or password.",
+          "code": "invalid_credentials"
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "field_name": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "example": {
+          "email": [
+            "The email field is required."
+          ],
+          "password": [
+            "The password must be at least 8 characters."
+          ]
+        }
+      },
+      "PaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "Total results"
+          },
+          "next": {
+            "type": "string",
+            "nullable": true,
+            "description": "Next page URL"
+          },
+          "previous": {
+            "type": "string",
+            "nullable": true,
+            "description": "Previous page URL"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "staff",
+              "admin"
+            ]
+          },
+          "is_staff": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "API token (same as access)"
+          },
+          "access": {
+            "type": "string",
+            "description": "Bearer token"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "staff",
+              "admin"
+            ]
+          },
+          "redirect_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "Hotel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "subdomain": {
+            "type": "string"
+          },
+          "property_type": {
+            "type": "string",
+            "default": "hotel"
+          },
+          "country": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "stars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "description": {
+            "type": "string"
+          },
+          "short_description": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string",
+            "default": "UTC"
+          },
+          "languages_spoken": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parking_available": {
+            "type": "boolean"
+          },
+          "airport_transfer": {
+            "type": "boolean"
+          },
+          "shuttle_service": {
+            "type": "boolean"
+          },
+          "opening_year": {
+            "type": "integer",
+            "nullable": true
+          },
+          "renovation_year": {
+            "type": "integer",
+            "nullable": true
+          },
+          "video_url": {
+            "type": "string"
+          },
+          "virtual_tour_url": {
+            "type": "string"
+          },
+          "cover_image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "average_rating": {
+            "type": "number",
+            "nullable": true
+          },
+          "total_reviews": {
+            "type": "integer"
+          },
+          "amenities": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "policy": {
+            "type": "object",
+            "nullable": true
+          },
+          "social_media": {
+            "type": "object",
+            "nullable": true
+          },
+          "contacts": {
+            "type": "object",
+            "nullable": true
+          },
+          "setup_status": {
+            "type": "object",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "publishing_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "archived"
+            ]
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "owner": {
+            "type": "integer",
+            "nullable": true
+          },
+          "readiness_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_ready_to_publish": {
+            "type": "boolean"
+          },
+          "latitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RoomType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "property": {
+            "type": "integer",
+            "description": "Hotel ID"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "room_size": {
+            "type": "number",
+            "nullable": true
+          },
+          "bed_type": {
+            "type": "string"
+          },
+          "smoking_allowed": {
+            "type": "boolean"
+          },
+          "max_adults": {
+            "type": "integer"
+          },
+          "max_children": {
+            "type": "integer"
+          },
+          "total_units": {
+            "type": "integer"
+          },
+          "base_price": {
+            "type": "string",
+            "description": "Decimal as string"
+          },
+          "weekend_price": {
+            "type": "string",
+            "nullable": true,
+            "description": "Decimal as string"
+          },
+          "pricing_mode": {
+            "type": "string",
+            "default": "per_night"
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "extra_bed_allowed": {
+            "type": "boolean"
+          },
+          "extra_bed_price": {
+            "type": "string",
+            "description": "Decimal as string"
+          },
+          "breakfast_included": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "cover_image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "amenity_details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingInquiry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "customer_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "customer": {
+            "type": "integer",
+            "nullable": true,
+            "description": "User ID"
+          },
+          "property": {
+            "type": "integer",
+            "description": "Hotel ID"
+          },
+          "property_name": {
+            "type": "string"
+          },
+          "room_type": {
+            "type": "integer",
+            "description": "RoomType ID"
+          },
+          "room_type_name": {
+            "type": "string"
+          },
+          "check_in": {
+            "type": "string",
+            "format": "date"
+          },
+          "check_out": {
+            "type": "string",
+            "format": "date"
+          },
+          "nights": {
+            "type": "integer"
+          },
+          "adults": {
+            "type": "integer"
+          },
+          "children": {
+            "type": "integer"
+          },
+          "infants": {
+            "type": "integer"
+          },
+          "extra_bed_needed": {
+            "type": "boolean"
+          },
+          "extra_bed_count": {
+            "type": "integer"
+          },
+          "estimated_total": {
+            "type": "string",
+            "description": "Decimal as string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "confirmed",
+              "cancelled",
+              "inquiry",
+              "pending"
+            ]
+          },
+          "guests": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "available_units_after_booking": {
+            "type": "integer",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "property": {
+            "type": "integer",
+            "description": "Hotel ID"
+          },
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_email": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "title": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "cleanliness": {
+            "type": "integer",
+            "nullable": true
+          },
+          "location": {
+            "type": "integer",
+            "nullable": true
+          },
+          "staff": {
+            "type": "integer",
+            "nullable": true
+          },
+          "comfort": {
+            "type": "integer",
+            "nullable": true
+          },
+          "value_for_money": {
+            "type": "integer",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ReviewSummary": {
+        "type": "object",
+        "properties": {
+          "average_rating": {
+            "type": "number",
+            "nullable": true
+          },
+          "total_reviews": {
+            "type": "integer"
+          },
+          "rating_breakdown": {
+            "type": "object",
+            "properties": {
+              "1": {
+                "type": "integer"
+              },
+              "2": {
+                "type": "integer"
+              },
+              "3": {
+                "type": "integer"
+              },
+              "4": {
+                "type": "integer"
+              },
+              "5": {
+                "type": "integer"
+              }
+            }
+          },
+          "category_averages": {
+            "type": "object",
+            "properties": {
+              "cleanliness": {
+                "type": "number",
+                "nullable": true
+              },
+              "location": {
+                "type": "number",
+                "nullable": true
+              },
+              "staff": {
+                "type": "number",
+                "nullable": true
+              },
+              "comfort": {
+                "type": "number",
+                "nullable": true
+              },
+              "value_for_money": {
+                "type": "number",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "ServiceCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HotelService": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "property": {
+            "type": "integer",
+            "description": "Hotel ID"
+          },
+          "property_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ServiceCategory ID"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "short_description": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string",
+            "description": "Decimal as string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "pricing_type": {
+            "type": "string",
+            "enum": [
+              "on_request",
+              "fixed",
+              "per_person",
+              "per_hour"
+            ]
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "nullable": true
+          },
+          "available_from": {
+            "type": "string",
+            "nullable": true
+          },
+          "available_until": {
+            "type": "string",
+            "nullable": true
+          },
+          "advance_booking_required": {
+            "type": "boolean"
+          },
+          "is_featured": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "cover_image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PropertyImage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "property": {
+            "type": "integer",
+            "description": "Hotel ID"
+          },
+          "image": {
+            "type": "string",
+            "description": "Image URL path"
+          },
+          "thumbnail": {
+            "type": "string",
+            "nullable": true
+          },
+          "caption": {
+            "type": "string"
+          },
+          "alt_text": {
+            "type": "string"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "is_cover": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AvailabilityResponse": {
+        "type": "object",
+        "properties": {
+          "property_id": {
+            "type": "integer"
+          },
+          "property": {
+            "type": "integer"
+          },
+          "property_name": {
+            "type": "string"
+          },
+          "property_type": {
+            "type": "string"
+          },
+          "check_in": {
+            "type": "string"
+          },
+          "check_out": {
+            "type": "string"
+          },
+          "is_available": {
+            "type": "boolean"
+          },
+          "available_rooms": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "HealthCheck": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "checks": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string",
+                "enum": [
+                  "ok"
+                ],
+                "description": "ok or error: message"
+              },
+              "cache": {
+                "type": "string",
+                "enum": [
+                  "ok"
+                ],
+                "description": "ok or error: message"
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "app_env": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health/": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health check endpoint",
+        "description": "Returns database and cache status. Laravel Cloud load balancer target.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "All systems healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheck"
+                },
+                "example": {
+                  "status": "ok",
+                  "checks": {
+                    "database": "ok",
+                    "cache": "ok"
+                  },
+                  "timestamp": "2026-06-23T12:00:00Z",
+                  "app_env": "production"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service degraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheck"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/hotel-context/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Get resolved public hotel context",
+        "description": "Resolves hotel from X-Hotel-Subdomain header or hostname subdomain.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/HotelSubdomainHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel context resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subdomain": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "bypass",
+                        "available",
+                        "invalid",
+                        "unavailable"
+                      ]
+                    },
+                    "property": {
+                      "$ref": "#/components/schemas/Hotel"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/signup/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create a new customer account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "password_confirm"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "first_name": {
+                    "type": "string"
+                  },
+                  "last_name": {
+                    "type": "string"
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "description": "Alternative to first_name + last_name"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8
+                  },
+                  "password_confirm": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "email": "guest@example.com",
+                "full_name": "John Doe",
+                "password": "securePass123",
+                "password_confirm": "securePass123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "debug_code": {
+                      "type": "string",
+                      "description": "Only in local/testing env"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/verify-otp/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify OTP code to activate account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "code"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 6
+                  }
+                }
+              },
+              "example": {
+                "email": "guest@example.com",
+                "code": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "example": "Email verified successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "invalid_otp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/resend-otp/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Resend OTP verification code",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New code sent"
+          }
+        }
+      }
+    },
+    "/api/auth/login/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login with email and password",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              },
+              "example": {
+                "email": "admin@example.com",
+                "password": "admin123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Email not verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "email_not_verified"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/admin/login/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Admin-only login (rejects non-admin users)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin account required"
+          }
+        }
+      }
+    },
+    "/api/auth/customer/login/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Customer-only login (rejects admin accounts)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Customer login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Customer account required"
+          }
+        }
+      }
+    },
+    "/api/auth/me/": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get current authenticated user profile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Update current user profile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout/": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logout and invalidate token",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Token deleted (no content)"
+          }
+        }
+      }
+    },
+    "/api/auth/users/": {
+      "get": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "List all users (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          },
+          {
+            "$ref": "#/components/parameters/SearchParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated user list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Create a new user (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User created"
+          }
+        }
+      }
+    },
+    "/api/auth/users/{id}/": {
+      "get": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Get user detail (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User detail"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Update user (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Delete user (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted"
+          }
+        }
+      }
+    },
+    "/api/auth/users/{id}/activate/": {
+      "post": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Activate a user account",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User activated"
+          }
+        }
+      }
+    },
+    "/api/auth/users/{id}/deactivate/": {
+      "post": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Deactivate a user account",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deactivated"
+          }
+        }
+      }
+    },
+    "/api/auth/users/{id}/change-role/": {
+      "post": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Change user role",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "role"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "customer",
+                      "staff",
+                      "admin"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/users/{id}/reset-password/": {
+      "post": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Reset user password",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/admins/": {
+      "get": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "List admin accounts (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated admin list"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Auth - Admin"
+        ],
+        "summary": "Create admin account (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Admin created"
+          }
+        }
+      }
+    },
+    "/api/properties/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "List hotels/properties",
+        "description": "Guest: Active published hotels.\nStaff: Assigned hotels.\nAdmin: All hotels.\nTenant-scoped: Single hotel if X-Hotel-Subdomain resolves.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "property_type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stars",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated hotel list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Hotel"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Create a hotel (admin/staff)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "property_type": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Hotel created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hotel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/properties/available/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "List available hotels (alias for index with published scope)",
+        "responses": {
+          "200": {
+            "description": "Available hotels list"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Get hotel detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hotel"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Update hotel (admin/staff assigned)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Delete hotel (admin/staff assigned)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Hotel deleted"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/publish/": {
+      "post": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Publish hotel (requires readiness)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel published"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/unpublish/": {
+      "post": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Unpublish hotel (set to draft)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel unpublished"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/archive/": {
+      "post": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Archive hotel (inactive)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel archived"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/unarchive/": {
+      "post": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Unarchive hotel (active draft)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel unarchived"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/readiness/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Check hotel readiness for publishing",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Readiness status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "is_ready_to_publish": {
+                      "type": "boolean"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/setup-status/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Get hotel setup wizard completion status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Setup status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "completion_percentage": {
+                      "type": "integer"
+                    },
+                    "last_completed_step": {
+                      "type": "integer"
+                    },
+                    "autosaved_at": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/autosave/": {
+      "patch": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Auto-save hotel with setup progress",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Autosaved"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/workspace/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Get hotel owner workspace data",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace data"
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/rooms/search/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Search active room types for a hotel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "property_id": {
+                      "type": "integer"
+                    },
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RoomType"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/availability/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Check room availability for date range",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "check_in",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "check_out",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Availability data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/properties/{id}/rates/": {
+      "get": {
+        "tags": [
+          "Hotels"
+        ],
+        "summary": "Get room rates with seasonal prices",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rate data"
+          }
+        }
+      }
+    },
+    "/api/properties/{property}/reviews/": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "List active reviews for a hotel",
+        "parameters": [
+          {
+            "name": "property",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated reviews"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Submit a public review for a hotel",
+        "security": [],
+        "parameters": [
+          {
+            "name": "property",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "guest_name",
+                  "rating",
+                  "comment"
+                ],
+                "properties": {
+                  "guest_name": {
+                    "type": "string"
+                  },
+                  "guest_email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
+                  "cleanliness": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "location": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "staff": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "comfort": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "value_for_money": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review created"
+          }
+        }
+      }
+    },
+    "/api/properties/{property}/reviews/summary/": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Get review summary with breakdown",
+        "parameters": [
+          {
+            "name": "property",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "List bookings",
+        "description": "Customer: Own bookings.\nStaff: Assigned hotel bookings.\nAdmin: All bookings.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new",
+                "confirmed",
+                "cancelled",
+                "inquiry",
+                "pending"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated bookings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingInquiry"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Create a booking (staff/admin)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Booking created"
+          }
+        }
+      }
+    },
+    "/api/bookings/inquiry/": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Public booking inquiry (no auth required)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customer_name",
+                  "phone",
+                  "property",
+                  "room_type",
+                  "check_in",
+                  "check_out",
+                  "adults"
+                ],
+                "properties": {
+                  "customer_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "property": {
+                    "type": "integer",
+                    "description": "Hotel ID"
+                  },
+                  "room_type": {
+                    "type": "integer",
+                    "description": "RoomType ID"
+                  },
+                  "check_in": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "check_out": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "adults": {
+                    "type": "integer"
+                  },
+                  "children": {
+                    "type": "integer"
+                  },
+                  "infants": {
+                    "type": "integer"
+                  },
+                  "extra_bed_needed": {
+                    "type": "boolean"
+                  },
+                  "extra_bed_count": {
+                    "type": "integer"
+                  },
+                  "guests": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "customer_name": "John Doe",
+                "phone": "+1234567890",
+                "email": "john@example.com",
+                "property": 1,
+                "room_type": 1,
+                "check_in": "2026-07-01",
+                "check_out": "2026-07-03",
+                "adults": 2,
+                "children": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking inquiry created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking_id": {
+                      "type": "integer"
+                    },
+                    "customer_name": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "property_id": {
+                      "type": "integer"
+                    },
+                    "room_type_id": {
+                      "type": "integer"
+                    },
+                    "check_in": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "check_out": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "adults": {
+                      "type": "integer"
+                    },
+                    "children": {
+                      "type": "integer"
+                    },
+                    "estimated_total": {
+                      "type": "string",
+                      "description": "Decimal as string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "new"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/confirm/": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Confirm a booking (staff/admin)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "booking_id"
+                ],
+                "properties": {
+                  "booking_id": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking confirmed"
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/cancel/": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel a booking",
+        "description": "Customer: Own booking.\nStaff: Assigned hotel booking.\nAdmin: Any booking.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking cancelled"
+          }
+        }
+      }
+    },
+    "/api/bookings/calendar/": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get booking calendar (alias for booking list)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated bookings for calendar"
+          }
+        }
+      }
+    },
+    "/api/reviews/": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "List all reviews (staff/admin moderation)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated review list"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Moderate a review (staff/admin)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Delete a review (staff/admin)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Review deleted"
+          }
+        }
+      }
+    },
+    "/api/property-amenities/": {
+      "get": {
+        "tags": [
+          "Amenities"
+        ],
+        "summary": "List hotel amenities",
+        "description": "Public read, admin/staff write.",
+        "responses": {
+          "200": {
+            "description": "Paginated amenity list"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Amenities"
+        ],
+        "summary": "Create a hotel amenity (admin/staff)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Amenity created"
+          }
+        }
+      }
+    },
+    "/api/property-amenities/{id}/": {
+      "get": {
+        "tags": [
+          "Amenities"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Amenity detail"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Amenities"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Amenity updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Amenities"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Amenity deleted"
+          }
+        }
+      }
+    },
+    "/api/property-images/": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "List property images",
+        "parameters": [
+          {
+            "name": "property",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter by hotel ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image list with DRF-style pagination"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Upload a property image",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "property",
+                  "image"
+                ],
+                "properties": {
+                  "property": {
+                    "type": "integer",
+                    "description": "Hotel ID"
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file (JPEG/PNG/GIF/WebP",
+                    "max 10MB)": null
+                  },
+                  "caption": {
+                    "type": "string"
+                  },
+                  "alt_text": {
+                    "type": "string"
+                  },
+                  "display_order": {
+                    "type": "integer"
+                  },
+                  "is_cover": {
+                    "type": "boolean"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Image uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyImage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/property-images/{id}/": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "description": "Get image detail",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image detail"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Images"
+        ],
+        "description": "Update image metadata or replace file",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Images"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Image deleted"
+          }
+        }
+      }
+    },
+    "/api/room-types/": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "List room types",
+        "parameters": [
+          {
+            "name": "property",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "Filter by hotel ID"
+            }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageSizeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated room types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/RoomType"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Create a room type (admin/staff)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Room type created"
+          }
+        }
+      }
+    },
+    "/api/room-types/{id}/": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room type detail"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room type updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Room type deleted"
+          }
+        }
+      }
+    },
+    "/api/room-types/{id}/rates/": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Get seasonal prices for a room type",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room type rates"
+          }
+        }
+      }
+    },
+    "/api/room-type-images/": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "room_type",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room type images"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "description": "Upload room type image",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "room_type",
+                  "image"
+                ],
+                "properties": {
+                  "room_type": {
+                    "type": "integer"
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "caption": {
+                    "type": "string"
+                  },
+                  "alt_text": {
+                    "type": "string"
+                  },
+                  "display_order": {
+                    "type": "integer"
+                  },
+                  "is_cover": {
+                    "type": "boolean"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/room-prices/": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "List seasonal room prices",
+        "parameters": [
+          {
+            "name": "room_type",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated room prices"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Room price created"
+          }
+        }
+      }
+    },
+    "/api/room-amenities/": {
+      "get": {
+        "tags": [
+          "Amenities"
+        ],
+        "summary": "List room amenities (active, unpaginated)",
+        "parameters": [
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room amenities list"
+          }
+        }
+      }
+    },
+    "/api/availability-blocks/": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "List availability blocks (staff/admin)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_type",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated availability blocks"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Availability block created"
+          }
+        }
+      }
+    },
+    "/api/service-categories/": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "List service categories",
+        "responses": {
+          "200": {
+            "description": "Paginated categories"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Create a service category (admin/staff)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Category created"
+          }
+        }
+      }
+    },
+    "/api/property-services/": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "List hotel services",
+        "parameters": [
+          {
+            "name": "property",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "Filter by hotel ID"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "description": "Filter by category ID"
+            }
+          },
+          {
+            "name": "pricing_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "on_request",
+                "fixed",
+                "per_person",
+                "per_hour"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_featured",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "min_price",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "max_price",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated services"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Services"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Service created"
+          }
+        }
+      }
+    },
+    "/api/service-images/": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "service",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service images"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "description": "Upload service image",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "service",
+                  "image"
+                ],
+                "properties": {
+                  "service": {
+                    "type": "integer"
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/channel-manager-connections/": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List channel manager connections (admin/staff)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated connections"
+          }
+        }
+      }
+    },
+    "/api/audit-logs/": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List audit logs (admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated audit logs"
+          }
+        }
+      }
+    },
+    "/api/contact-messages/": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List contact messages (admin/staff)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/SearchParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated messages"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Submit a contact message (public)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "full_name",
+                  "email",
+                  "subject",
+                  "message"
+                ],
+                "properties": {
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message sent"
+          }
+        }
+      }
+    }
+  }
+}

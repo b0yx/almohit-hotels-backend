@@ -8,6 +8,7 @@ use App\Models\RoomType;
 use App\Support\CompatResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BookingController extends CrudController
 {
@@ -34,6 +35,50 @@ class BookingController extends CrudController
         return response()->json(CompatResponse::page($query->latest('id')->paginate(20)));
     }
 
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'guest_name' => ['required', 'string', 'max:255'],
+            'guest_email' => ['nullable', 'email'],
+            'guest_phone' => ['required', 'string', 'max:50'],
+            'property' => ['required', 'exists:hotels,id'],
+            'room_type' => ['required', 'exists:room_types,id'],
+            'check_in' => ['required', 'date'],
+            'check_out' => ['required', 'date', 'after:check_in'],
+            'adults' => ['required', 'integer', 'min:1'],
+            'children' => ['nullable', 'integer', 'min:0'],
+            'total_guests' => ['nullable', 'integer', 'min:1'],
+            'status' => ['nullable', 'string', 'in:new,inquiry,confirmed,pending'],
+        ]);
+
+        $roomType = RoomType::query()->find($data['room_type']);
+        if (! $roomType || (int) $roomType->hotel_id !== (int) $data['property']) {
+            return response()->json(['detail' => 'The specified room type does not belong to the specified property.', 'code' => 'invalid_room_type_for_property'], 422);
+        }
+
+        $bookingData = [
+            'customer_name' => $data['guest_name'],
+            'phone' => $data['guest_phone'],
+            'email' => $data['guest_email'] ?? '',
+            'customer_id' => $request->user()?->id,
+            'hotel_id' => $data['property'],
+            'room_type_id' => $data['room_type'],
+            'check_in' => $data['check_in'],
+            'check_out' => $data['check_out'],
+            'adults' => $data['adults'],
+            'children' => $data['children'] ?? 0,
+            'infants' => 0,
+            'status' => $data['status'] ?? 'new',
+        ];
+
+        $nights = max(1, now()->parse($bookingData['check_in'])->diffInDays(now()->parse($bookingData['check_out'])));
+        $bookingData['estimated_total'] = (float) ($roomType->base_price ?: 0) * $nights;
+
+        $booking = DB::transaction(fn () => BookingInquiry::query()->create($bookingData));
+
+        return response()->json(CompatResponse::booking($booking->fresh(['hotel', 'roomType'])), 201);
+    }
+
     public function inquiry(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -52,32 +97,39 @@ class BookingController extends CrudController
             'guests' => ['nullable', 'array'],
         ]);
 
-        $roomType = RoomType::query()->findOrFail($data['room_type']);
+        $roomType = RoomType::query()->find($data['room_type']);
+        if (! $roomType || (int) $roomType->hotel_id !== (int) $data['property']) {
+            return response()->json(['detail' => 'The specified room type does not belong to the specified property.', 'code' => 'invalid_room_type_for_property'], 422);
+        }
         $nights = max(1, now()->parse($data['check_in'])->diffInDays(now()->parse($data['check_out'])));
         $estimatedTotal = (float) ($roomType->base_price ?: 0) * $nights;
         $estimatedTotal += (float) ($roomType->extra_bed_price ?: 0) * (int) ($data['extra_bed_count'] ?? 0) * $nights;
 
-        $booking = BookingInquiry::query()->create([
-            'customer_name' => $data['customer_name'],
-            'phone' => $data['phone'],
-            'email' => $data['email'] ?? '',
-            'customer_id' => $request->user()?->id,
-            'hotel_id' => $data['property'],
-            'room_type_id' => $data['room_type'],
-            'check_in' => $data['check_in'],
-            'check_out' => $data['check_out'],
-            'adults' => $data['adults'],
-            'children' => $data['children'] ?? 0,
-            'infants' => $data['infants'] ?? 0,
-            'extra_bed_needed' => $data['extra_bed_needed'] ?? false,
-            'extra_bed_count' => $data['extra_bed_count'] ?? 0,
-            'estimated_total' => $estimatedTotal,
-            'status' => 'new',
-        ]);
+        $booking = DB::transaction(function () use ($data, $request, $estimatedTotal) {
+            $booking = BookingInquiry::query()->create([
+                'customer_name' => $data['customer_name'],
+                'phone' => $data['phone'],
+                'email' => $data['email'] ?? '',
+                'customer_id' => $request->user()?->id,
+                'hotel_id' => $data['property'],
+                'room_type_id' => $data['room_type'],
+                'check_in' => $data['check_in'],
+                'check_out' => $data['check_out'],
+                'adults' => $data['adults'],
+                'children' => $data['children'] ?? 0,
+                'infants' => $data['infants'] ?? 0,
+                'extra_bed_needed' => $data['extra_bed_needed'] ?? false,
+                'extra_bed_count' => $data['extra_bed_count'] ?? 0,
+                'estimated_total' => $estimatedTotal,
+                'status' => 'new',
+            ]);
 
-        foreach ($data['guests'] ?? [] as $guest) {
-            BookingGuest::query()->create(array_merge($guest, ['booking_inquiry_id' => $booking->id]));
-        }
+            foreach ($data['guests'] ?? [] as $guest) {
+                BookingGuest::query()->create(array_merge($guest, ['booking_inquiry_id' => $booking->id]));
+            }
+
+            return $booking;
+        });
 
         return response()->json([
             'booking_id' => $booking->id,

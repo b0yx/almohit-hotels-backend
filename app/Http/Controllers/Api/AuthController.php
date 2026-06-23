@@ -42,11 +42,16 @@ class AuthController extends Controller
             'password' => $data['password'],
         ]);
 
+        $code = (string) random_int(100000, 999999);
         EmailOTP::query()->create([
             'user_id' => $user->id,
-            'hashed_code' => Hash::make('123456'),
+            'hashed_code' => Hash::make($code),
             'expires_at' => now()->addMinutes(10),
         ]);
+
+        if (app()->environment('local', 'testing')) {
+            return response()->json(['detail' => 'Account created. Please check your email for the verification code.', 'debug_code' => $code], 201);
+        }
 
         return response()->json(['detail' => 'Account created. Please check your email for the verification code.'], 201);
     }
@@ -72,9 +77,10 @@ class AuthController extends Controller
         $data = $request->validate(['email' => ['required', 'email']]);
         $user = User::query()->where('email', strtolower($data['email']))->where('email_verified', false)->first();
         if ($user) {
+            $code = (string) random_int(100000, 999999);
             EmailOTP::query()->create([
                 'user_id' => $user->id,
-                'hashed_code' => Hash::make('123456'),
+                'hashed_code' => Hash::make($code),
                 'expires_at' => now()->addMinutes(10),
             ]);
         }

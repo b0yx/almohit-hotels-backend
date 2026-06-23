@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+.env.local
 .phpactor.json
 .phpunit.result.cache
 /.codex
@@ -20,8 +21,14 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/logs/*
+/storage/debugbar/*
+/bootstrap/cache/*
 /vendor
 _ide_helper.php
+*.sqlite
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/nixpacks/
+.DS_Store?

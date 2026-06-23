@@ -10,6 +10,11 @@ class RoomType extends Model
 {
     protected $guarded = ['id'];
 
+    protected $attributes = [
+        'max_adults' => 2,
+        'total_units' => 1,
+    ];
+
     protected function casts(): array
     {
         return [

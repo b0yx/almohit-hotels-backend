@@ -17,6 +17,11 @@ class ReviewController extends CrudController
 
     public function propertyReviews(Request $request, int $property): JsonResponse
     {
+        $hotelExists = Hotel::query()->whereKey($property)->exists();
+        if (! $hotelExists) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
         if ($request->isMethod('post')) {
             $data = $request->validate([
                 'guest_name' => ['required', 'string', 'max:255'],
@@ -46,23 +51,46 @@ class ReviewController extends CrudController
 
     public function summary(int $property): JsonResponse
     {
-        $reviews = Review::query()->where('hotel_id', $property)->where('is_active', true);
-        $total = (clone $reviews)->count();
-        $breakdown = [];
+        $hotelExists = Hotel::query()->whereKey($property)->exists();
+        if (! $hotelExists) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
+        $stats = Review::query()
+            ->where('hotel_id', $property)
+            ->where('is_active', true)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('ROUND(AVG(rating), 1) as avg_rating')
+            ->selectRaw('ROUND(AVG(cleanliness), 1) as avg_cleanliness')
+            ->selectRaw('ROUND(AVG(location), 1) as avg_location')
+            ->selectRaw('ROUND(AVG(staff), 1) as avg_staff')
+            ->selectRaw('ROUND(AVG(comfort), 1) as avg_comfort')
+            ->selectRaw('ROUND(AVG(value_for_money), 1) as avg_value_for_money')
+            ->first();
+
+        $total = (int) ($stats?->total ?? 0);
+        $breakdown = Review::query()
+            ->where('hotel_id', $property)
+            ->where('is_active', true)
+            ->selectRaw('rating, COUNT(*) as count')
+            ->groupBy('rating')
+            ->pluck('count', 'rating');
+
+        $ratingBreakdown = [];
         foreach ([5, 4, 3, 2, 1] as $rating) {
-            $breakdown[(string) $rating] = (clone $reviews)->where('rating', $rating)->count();
+            $ratingBreakdown[(string) $rating] = (int) ($breakdown[$rating] ?? 0);
         }
 
         return response()->json([
-            'average_rating' => $total ? round((float) (clone $reviews)->avg('rating'), 1) : null,
+            'average_rating' => $total ? (float) ($stats?->avg_rating ?? 0) : null,
             'total_reviews' => $total,
-            'rating_breakdown' => $breakdown,
+            'rating_breakdown' => $ratingBreakdown,
             'category_averages' => [
-                'cleanliness' => $total ? round((float) (clone $reviews)->avg('cleanliness'), 1) : null,
-                'location' => $total ? round((float) (clone $reviews)->avg('location'), 1) : null,
-                'staff' => $total ? round((float) (clone $reviews)->avg('staff'), 1) : null,
-                'comfort' => $total ? round((float) (clone $reviews)->avg('comfort'), 1) : null,
-                'value_for_money' => $total ? round((float) (clone $reviews)->avg('value_for_money'), 1) : null,
+                'cleanliness' => $total ? (float) ($stats?->avg_cleanliness ?? 0) : null,
+                'location' => $total ? (float) ($stats?->avg_location ?? 0) : null,
+                'staff' => $total ? (float) ($stats?->avg_staff ?? 0) : null,
+                'comfort' => $total ? (float) ($stats?->avg_comfort ?? 0) : null,
+                'value_for_money' => $total ? (float) ($stats?->avg_value_for_money ?? 0) : null,
             ],
         ]);
     }

@@ -52,7 +52,7 @@ class HotelController extends CrudController
 
     public function publish(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
 
         return response()->json(CompatResponse::hotel($hotel));
@@ -60,7 +60,7 @@ class HotelController extends CrudController
 
     public function unpublish(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
 
         return response()->json(CompatResponse::hotel($hotel));
@@ -68,7 +68,7 @@ class HotelController extends CrudController
 
     public function archive(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
 
         return response()->json(CompatResponse::hotel($hotel));
@@ -76,33 +76,81 @@ class HotelController extends CrudController
 
     public function unarchive(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
 
         return response()->json(CompatResponse::hotel($hotel));
     }
 
-    public function readiness(): JsonResponse
+    public function readiness(int $id): JsonResponse
     {
-        return response()->json(['is_ready_to_publish' => true, 'errors' => []]);
+        $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities'])->findOrFail($id);
+        $errors = [];
+
+        if (empty($hotel->name)) {
+            $errors[] = 'Property name is required.';
+        }
+        if (empty($hotel->slug)) {
+            $errors[] = 'Property slug is required.';
+        }
+        if (empty($hotel->subdomain)) {
+            $errors[] = 'Subdomain is required.';
+        }
+        if (empty($hotel->country) || empty($hotel->city)) {
+            $errors[] = 'Country and city are required.';
+        }
+        if ($hotel->roomTypes()->where('is_active', true)->count() === 0) {
+            $errors[] = 'At least one active room type is required.';
+        }
+        if ($hotel->images()->where('is_active', true)->count() === 0) {
+            $errors[] = 'At least one active property image is required.';
+        }
+
+        return response()->json([
+            'is_ready_to_publish' => empty($errors),
+            'errors' => $errors,
+        ]);
     }
 
-    public function setupStatus(): JsonResponse
+    public function setupStatus(int $id): JsonResponse
     {
-        return response()->json(['completion_percentage' => 0, 'last_completed_step' => 1, 'autosaved_at' => null]);
+        $hotel = Hotel::query()->with('setupStatus')->findOrFail($id);
+        $setup = $hotel->setupStatus;
+
+        return response()->json([
+            'completion_percentage' => $setup?->completion_percentage ?? 0,
+            'last_completed_step' => $setup?->last_completed_step ?? 1,
+            'autosaved_at' => $setup?->autosaved_at?->toJSON(),
+        ]);
     }
 
     public function autosave(Request $request, int $id): JsonResponse
     {
         $this->update($request, $id);
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities', 'reviews'])->findOrFail($id);
+        $setup = $hotel->setupStatus;
 
-        return response()->json(['property' => CompatResponse::hotel($hotel), 'setup' => ['completion_percentage' => 0, 'last_completed_step' => (int) $request->input('last_completed_step', 1), 'autosaved_at' => now()->toJSON()]]);
+        if ($setup && $request->has('last_completed_step')) {
+            $setup->forceFill([
+                'last_completed_step' => (int) $request->input('last_completed_step'),
+                'autosaved_at' => now(),
+                'completion_percentage' => min(100, (int) (($request->input('last_completed_step', 1) / 10) * 100)),
+            ])->save();
+        }
+
+        return response()->json([
+            'property' => CompatResponse::hotel($hotel),
+            'setup' => [
+                'completion_percentage' => $setup?->completion_percentage ?? 0,
+                'last_completed_step' => $setup?->last_completed_step ?? 1,
+                'autosaved_at' => $setup?->autosaved_at?->toJSON(),
+            ],
+        ]);
     }
 
     public function workspace(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
 
         return response()->json([
             'property' => CompatResponse::hotel($hotel),
@@ -115,7 +163,7 @@ class HotelController extends CrudController
 
     public function roomsSearch(Request $request, int $id): JsonResponse
     {
-        $rooms = Hotel::query()->findOrFail($id)->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
+        $rooms = Hotel::query()->with('roomTypes')->findOrFail($id)->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
             'room_type_id' => $room->id,
             'name' => $room->name,
             'description' => $room->description,
@@ -135,7 +183,7 @@ class HotelController extends CrudController
 
     public function availability(Request $request, int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
+        $hotel = Hotel::query()->with('roomTypes')->findOrFail($id);
         $units = $hotel->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
             'id' => $room->id,
             'name' => $room->name,
@@ -167,7 +215,7 @@ class HotelController extends CrudController
         return response()->json([
             'property_id' => $hotel->id,
             'property_name' => $hotel->name,
-            'rates' => $hotel->roomTypes()->with('prices')->get()->map(fn ($room) => [
+            'rates' => $hotel->roomTypes()->with(['prices', 'images'])->get()->map(fn ($room) => [
                 'room_type_id' => $room->id,
                 'room_name' => $room->name,
                 'base_price' => (string) $room->base_price,

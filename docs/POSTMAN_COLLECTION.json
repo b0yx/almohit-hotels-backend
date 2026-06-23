@@ -1,0 +1,3165 @@
+{
+  "info": {
+    "name": "Almohit Hotels API",
+    "description": "RESTful API for Almohit Hotels platform. Provides hotel listings, room types,\nbookings, reviews, services, and image management with role-based access control.\n\n**Auth:** Bearer token via `Authorization: Bearer <token>` header.\n**Tenant:** Subdomain via `X-Hotel-Subdomain` header or hostname.\n**Pagination:** DRF-compatible `{ count, next, previous, results }`.\n**Errors:** snake_case JSON `{ detail, code }`.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "opencode"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "hotel_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "booking_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "room_type_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List audit logs (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/audit-logs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "audit-logs"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List audit logs (admin only)"
+          }
+        },
+        {
+          "name": "List channel manager connections (admin/staff)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/channel-manager-connections/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "channel-manager-connections"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List channel manager connections (admin/staff)"
+          }
+        },
+        {
+          "name": "List contact messages (admin/staff)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/contact-messages/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contact-messages"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List contact messages (admin/staff)"
+          }
+        },
+        {
+          "name": "Submit a contact message (public)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/contact-messages/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contact-messages"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Submit a contact message (public)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"\",\n  \"email\": \"\",\n  \"phone\": \"\",\n  \"subject\": \"\",\n  \"message\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin-only login (rejects non-admin users)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "admin",
+                "login"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Admin-only login (rejects non-admin users)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Customer-only login (rejects admin accounts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/customer/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "customer",
+                "login"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Customer-only login (rejects admin accounts)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login with email and password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Login with email and password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Logout and invalidate token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Logout and invalidate token"
+          }
+        },
+        {
+          "name": "Get current authenticated user profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Get current authenticated user profile"
+          }
+        },
+        {
+          "name": "Update current user profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Update current user profile",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"\",\n  \"phone\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Resend OTP verification code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/resend-otp/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "resend-otp"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Resend OTP verification code",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create a new customer account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/signup/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "signup"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a new customer account",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"first_name\": \"\",\n  \"last_name\": \"\",\n  \"full_name\": \"\",\n  \"password\": \"\",\n  \"password_confirm\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Verify OTP code to activate account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify-otp/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-otp"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Verify OTP code to activate account",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"code\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Admin",
+      "item": [
+        {
+          "name": "List admin accounts (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/admins/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "admins"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List admin accounts (admin only)"
+          }
+        },
+        {
+          "name": "Create admin account (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/admins/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "admins"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create admin account (admin only)"
+          }
+        },
+        {
+          "name": "List all users (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List all users (admin only)"
+          }
+        },
+        {
+          "name": "Create a new user (admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a new user (admin only)"
+          }
+        },
+        {
+          "name": "Get user detail (admin only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get user detail (admin only)"
+          }
+        },
+        {
+          "name": "Update user (admin only)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Update user (admin only)"
+          }
+        },
+        {
+          "name": "Delete user (admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Delete user (admin only)"
+          }
+        },
+        {
+          "name": "Activate a user account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/activate/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id",
+                "activate"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Activate a user account"
+          }
+        },
+        {
+          "name": "Change user role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/change-role/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id",
+                "change-role"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Change user role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Deactivate a user account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/deactivate/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id",
+                "deactivate"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Deactivate a user account"
+          }
+        },
+        {
+          "name": "Reset user password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/users/{id}/reset-password/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id",
+                "reset-password"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Reset user password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "List availability blocks (staff/admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/availability-blocks/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "availability-blocks"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List availability blocks (staff/admin)"
+          }
+        },
+        {
+          "name": "POST /api/availability-blocks/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/availability-blocks/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "availability-blocks"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "List seasonal room prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-prices/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-prices"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List seasonal room prices"
+          }
+        },
+        {
+          "name": "POST /api/room-prices/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-prices/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-prices"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "List room types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-types/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-types"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List room types"
+          }
+        },
+        {
+          "name": "Create a room type (admin/staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-types/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-types"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a room type (admin/staff)"
+          }
+        },
+        {
+          "name": "GET /api/room-types/{id}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-types/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-types",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "PATCH /api/room-types/{id}/",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-types/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-types",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "DELETE /api/room-types/{id}/",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-types/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-types",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Get seasonal prices for a room type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-types/{id}/rates/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-types",
+                ":id",
+                "rates"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get seasonal prices for a room type"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "List bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bookings"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Customer: Own bookings.\nStaff: Assigned hotel bookings.\nAdmin: All bookings.\n"
+          }
+        },
+        {
+          "name": "Create a booking (staff/admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bookings"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a booking (staff/admin)"
+          }
+        },
+        {
+          "name": "Get booking calendar (alias for booking list)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/calendar/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "calendar"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Get booking calendar (alias for booking list)"
+          }
+        },
+        {
+          "name": "Confirm a booking (staff/admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/confirm/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "confirm"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Confirm a booking (staff/admin)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Public booking inquiry (no auth required)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/inquiry/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "inquiry"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Public booking inquiry (no auth required)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"\",\n  \"phone\": \"\",\n  \"email\": \"\",\n  \"property\": \"\",\n  \"room_type\": \"\",\n  \"check_in\": \"\",\n  \"check_out\": \"\",\n  \"adults\": \"\",\n  \"children\": \"\",\n  \"infants\": \"\",\n  \"extra_bed_needed\": \"\",\n  \"extra_bed_count\": \"\",\n  \"guests\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cancel a booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/{id}/cancel/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Customer: Own booking.\nStaff: Assigned hotel booking.\nAdmin: Any booking.\n"
+          }
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health check endpoint",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/health/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Returns database and cache status. Laravel Cloud load balancer target."
+          },
+          "response": [
+            {
+              "name": "200 All systems healthy",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "type": "text"
+                }
+              ],
+              "body": "{\n  \"status\": \"ok\",\n  \"checks\": {\n    \"database\": \"ok\",\n    \"cache\": \"ok\"\n  },\n  \"timestamp\": \"2026-06-23T12:00:00Z\",\n  \"app_env\": \"production\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Hotels",
+      "item": [
+        {
+          "name": "List hotels/properties",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Guest: Active published hotels.\nStaff: Assigned hotels.\nAdmin: All hotels.\nTenant-scoped: Single hotel if X-Hotel-Subdomain resolves.\n"
+          }
+        },
+        {
+          "name": "Create a hotel (admin/staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a hotel (admin/staff)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"property_type\": \"\",\n  \"country\": \"\",\n  \"city\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List available hotels (alias for index with published scope)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/available/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                "available"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List available hotels (alias for index with published scope)"
+          }
+        },
+        {
+          "name": "Get hotel detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get hotel detail"
+          }
+        },
+        {
+          "name": "Update hotel (admin/staff assigned)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Update hotel (admin/staff assigned)"
+          }
+        },
+        {
+          "name": "Delete hotel (admin/staff assigned)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Delete hotel (admin/staff assigned)"
+          }
+        },
+        {
+          "name": "Archive hotel (inactive)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/archive/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "archive"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Archive hotel (inactive)"
+          }
+        },
+        {
+          "name": "Auto-save hotel with setup progress",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/autosave/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "autosave"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Auto-save hotel with setup progress"
+          }
+        },
+        {
+          "name": "Check room availability for date range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/availability/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "availability"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Check room availability for date range"
+          }
+        },
+        {
+          "name": "Publish hotel (requires readiness)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/publish/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "publish"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Publish hotel (requires readiness)"
+          }
+        },
+        {
+          "name": "Get room rates with seasonal prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/rates/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "rates"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get room rates with seasonal prices"
+          }
+        },
+        {
+          "name": "Check hotel readiness for publishing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/readiness/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "readiness"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Check hotel readiness for publishing"
+          }
+        },
+        {
+          "name": "Search active room types for a hotel",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/rooms/search/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "rooms",
+                "search"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Search active room types for a hotel"
+          }
+        },
+        {
+          "name": "Get hotel setup wizard completion status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/setup-status/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "setup-status"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get hotel setup wizard completion status"
+          }
+        },
+        {
+          "name": "Unarchive hotel (active draft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/unarchive/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "unarchive"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Unarchive hotel (active draft)"
+          }
+        },
+        {
+          "name": "Unpublish hotel (set to draft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/unpublish/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "unpublish"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Unpublish hotel (set to draft)"
+          }
+        },
+        {
+          "name": "Get hotel owner workspace data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{id}/workspace/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":id",
+                "workspace"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get hotel owner workspace data"
+          }
+        },
+        {
+          "name": "Get resolved public hotel context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/public/hotel-context/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "hotel-context"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Resolves hotel from X-Hotel-Subdomain header or hostname subdomain."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "List active reviews for a hotel",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{property}/reviews/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":property",
+                "reviews"
+              ],
+              "variable": [
+                {
+                  "key": "property",
+                  "value": "{{hotel_id}}",
+                  "description": "Property ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "List active reviews for a hotel"
+          }
+        },
+        {
+          "name": "Submit a public review for a hotel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{property}/reviews/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":property",
+                "reviews"
+              ],
+              "variable": [
+                {
+                  "key": "property",
+                  "value": "{{hotel_id}}",
+                  "description": "Property ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Submit a public review for a hotel",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"\",\n  \"guest_email\": \"\",\n  \"rating\": \"\",\n  \"title\": \"\",\n  \"comment\": \"\",\n  \"cleanliness\": \"\",\n  \"location\": \"\",\n  \"staff\": \"\",\n  \"comfort\": \"\",\n  \"value_for_money\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get review summary with breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{property}/reviews/summary/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                ":property",
+                "reviews",
+                "summary"
+              ],
+              "variable": [
+                {
+                  "key": "property",
+                  "value": "{{hotel_id}}",
+                  "description": "Property ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get review summary with breakdown"
+          }
+        },
+        {
+          "name": "List all reviews (staff/admin moderation)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reviews/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List all reviews (staff/admin moderation)"
+          }
+        },
+        {
+          "name": "Moderate a review (staff/admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reviews/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Moderate a review (staff/admin)"
+          }
+        },
+        {
+          "name": "Delete a review (staff/admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reviews/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Delete a review (staff/admin)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Amenities",
+      "item": [
+        {
+          "name": "List hotel amenities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-amenities/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-amenities"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Public read, admin/staff write."
+          }
+        },
+        {
+          "name": "Create a hotel amenity (admin/staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-amenities/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-amenities"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a hotel amenity (admin/staff)"
+          }
+        },
+        {
+          "name": "GET /api/property-amenities/{id}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-amenities/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-amenities",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "PATCH /api/property-amenities/{id}/",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-amenities/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-amenities",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "DELETE /api/property-amenities/{id}/",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-amenities/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-amenities",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "List room amenities (active, unpaginated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-amenities/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-amenities"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List room amenities (active, unpaginated)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Images",
+      "item": [
+        {
+          "name": "List property images",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-images/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-images"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List property images"
+          }
+        },
+        {
+          "name": "Upload a property image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-images/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-images"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Upload a property image",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "property",
+                  "value": "",
+                  "type": "text",
+                  "description": "Hotel ID"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "",
+                  "description": "Image file (JPEG/PNG/GIF/WebP"
+                },
+                {
+                  "key": "caption",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "alt_text",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "display_order",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "is_cover",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/property-images/{id}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-images/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-images",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Get image detail"
+          }
+        },
+        {
+          "name": "PATCH /api/property-images/{id}/",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-images/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-images",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": "Update image metadata or replace file"
+          }
+        },
+        {
+          "name": "DELETE /api/property-images/{id}/",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-images/{id}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-images",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{hotel_id}}",
+                  "description": "Resource ID"
+                }
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /api/room-type-images/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-type-images/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-type-images"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /api/room-type-images/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room-type-images/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "room-type-images"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Upload room type image",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "room_type",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "",
+                  "description": ""
+                },
+                {
+                  "key": "caption",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "alt_text",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "display_order",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "is_cover",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/service-images/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/service-images/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "service-images"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /api/service-images/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/service-images/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "service-images"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Upload service image",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "service",
+                  "value": "",
+                  "type": "text",
+                  "description": ""
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "",
+                  "description": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "List hotel services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-services/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-services"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List hotel services"
+          }
+        },
+        {
+          "name": "POST /api/property-services/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-services/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "property-services"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "List service categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/service-categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "service-categories"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "List service categories"
+          }
+        },
+        {
+          "name": "Create a service category (admin/staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/service-categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "service-categories"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "Create a service category (admin/staff)"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set auth token from Login response automatically",
+          "const loginResponse = pm.response;",
+          "if (loginResponse.code === 200) {",
+          "    const jsonData = loginResponse.json();",
+          "    if (jsonData.access) {",
+          "        pm.collectionVariables.set('auth_token', jsonData.access);",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ]
+}

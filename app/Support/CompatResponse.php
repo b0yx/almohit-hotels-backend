@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\BookingInquiry;
 use App\Models\Hotel;
+use App\Models\HotelPolicy;
 use App\Models\HotelService;
 use App\Models\Review;
 use App\Models\RoomType;
@@ -53,7 +54,22 @@ class CompatResponse
 
     public static function hotel(Hotel $hotel): array
     {
-        $cover = method_exists($hotel, 'coverImage') ? $hotel->coverImage() : null;
+        $cover = $hotel->coverImage();
+
+        $avgRating = null;
+        $totalReviews = 0;
+        if ($hotel->relationLoaded('reviews')) {
+            $active = $hotel->reviews->where('is_active', true);
+            $totalReviews = $active->count();
+            $avgRating = $totalReviews ? round((float) $active->avg('rating'), 1) : null;
+        }
+
+        $policy = $hotel->relationLoaded('policy') ? $hotel->policy : null;
+        $socialMedia = $hotel->relationLoaded('socialMedia') ? $hotel->socialMedia : null;
+        $contacts = $hotel->relationLoaded('contacts') ? $hotel->contacts : null;
+        $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
+        $amenities = $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [];
+        $images = $hotel->relationLoaded('images') ? $hotel->images->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
 
         return [
             'id' => $hotel->id,
@@ -80,20 +96,20 @@ class CompatResponse
             'video_url' => $hotel->video_url,
             'virtual_tour_url' => $hotel->virtual_tour_url,
             'cover_image_url' => $cover?->image,
-            'average_rating' => round((float) $hotel->reviews()->where('is_active', true)->avg('rating'), 1) ?: null,
-            'total_reviews' => $hotel->reviews()->where('is_active', true)->count(),
-            'amenities' => $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [],
-            'images' => $hotel->relationLoaded('images') ? $hotel->images->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [],
-            'policy' => null,
-            'social_media' => null,
-            'contacts' => null,
-            'setup_status' => null,
+            'average_rating' => $avgRating,
+            'total_reviews' => $totalReviews,
+            'amenities' => $amenities,
+            'images' => $images,
+            'policy' => $policy ? self::genericPolicy($policy) : null,
+            'social_media' => $socialMedia ? self::generic($socialMedia) : null,
+            'contacts' => $contacts ? self::generic($contacts) : null,
+            'setup_status' => $setupStatus ? self::generic($setupStatus) : null,
             'is_active' => (bool) $hotel->is_active,
             'publishing_status' => $hotel->publishing_status,
             'published_at' => optional($hotel->published_at)->toJSON(),
             'owner' => $hotel->owner_id,
-            'readiness_errors' => [],
-            'is_ready_to_publish' => true,
+            'readiness_errors' => self::computeReadinessErrors($hotel),
+            'is_ready_to_publish' => empty(self::computeReadinessErrors($hotel)),
             'latitude' => $hotel->latitude,
             'longitude' => $hotel->longitude,
             'created_at' => optional($hotel->created_at)->toJSON(),
@@ -101,10 +117,39 @@ class CompatResponse
         ];
     }
 
+    public static function genericPolicy(HotelPolicy $policy): array
+    {
+        return $policy->toArray();
+    }
+
+    public static function computeReadinessErrors(Hotel $hotel): array
+    {
+        $errors = [];
+        if (empty($hotel->name)) {
+            $errors[] = 'Property name is required.';
+        }
+        if (empty($hotel->slug)) {
+            $errors[] = 'Property slug is required.';
+        }
+        if (empty($hotel->subdomain)) {
+            $errors[] = 'Subdomain is required.';
+        }
+        if (empty($hotel->country) || empty($hotel->city)) {
+            $errors[] = 'Country and city are required.';
+        }
+        return $errors;
+    }
+
     public static function roomType(RoomType $room): array
     {
+        $coverImageUrl = null;
+        if ($room->relationLoaded('images')) {
+            $cover = $room->images->where('is_active', true)->sortByDesc('is_cover')->sortBy('display_order')->first();
+            $coverImageUrl = $cover?->image;
+        }
+
         return array_merge(self::genericAlias($room, ['property' => 'hotel_id']), [
-            'cover_image_url' => $room->images()->where('is_active', true)->orderByDesc('is_cover')->value('image'),
+            'cover_image_url' => $coverImageUrl,
             'images' => $room->relationLoaded('images') ? $room->images->map(fn ($i) => self::generic($i))->values() : [],
             'prices' => $room->relationLoaded('prices') ? $room->prices->map(fn ($p) => self::generic($p))->values() : [],
             'amenity_details' => [],

@@ -56,4 +56,24 @@ class Hotel extends Model
     {
         return $this->images()->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order')->first();
     }
+
+    public function policy(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(HotelPolicy::class);
+    }
+
+    public function socialMedia(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(PropertySocialMedia::class);
+    }
+
+    public function contacts(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(PropertyContacts::class);
+    }
+
+    public function setupStatus(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(PropertySetupStatus::class);
+    }
 }
