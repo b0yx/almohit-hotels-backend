@@ -27,6 +27,7 @@ Set these in the Railway dashboard under your project's **Variables** tab.
 | `SESSION_DRIVER` | ✅ | `array` | API-only, no sessions needed |
 | `QUEUE_CONNECTION` | ✅ | `database` | |
 | `FILESYSTEM_DISK` | ✅ | `s3` | For production image storage |
+| `NIXPACKS_PHP_ROOT_DIR` | ✅ | `/app/public` | Required for Laravel — Nixpacks needs to serve from `public/` |
 | `LOG_CHANNEL` | ❌ | `stderr` | Defaults to `stack`, Railway captures stderr |
 | `LOG_LEVEL` | ❌ | `warning` | Defaults to `debug` |
 
@@ -64,11 +65,11 @@ Railway can provision a PostgreSQL database for your project:
    # Copy the output and set as APP_KEY in Railway dashboard
    ```
 
-4. **Deploy automatically** — `railway.json` handles the rest:
+4. **Deploy automatically** — `railway.json` + `Procfile` handle the rest:
    - **Build:** `composer install --no-dev --optimize-autoloader && php artisan config:cache`
-   - **Deploy:** `php artisan migrate --force && php artisan storage:link` (run automatically)
-   - Railway's Nixpacks auto-detects PHP and configures Nginx + PHP-FPM to serve from `public/`
-   - No Procfile needed
+   - **Release (pre-deploy):** `php artisan migrate --force && php artisan storage:link` (runs from `Procfile`)
+   - **Start:** Nixpacks auto-generates Nginx + PHP-FPM web server start command
+   - **Document root:** must set `NIXPACKS_PHP_ROOT_DIR=/app/public` in Railway env vars
 
 5. **Seed demo data** (optional, via Railway shell):
 
