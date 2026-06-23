@@ -64,18 +64,13 @@ Railway can provision a PostgreSQL database for your project:
    # Copy the output and set as APP_KEY in Railway dashboard
    ```
 
-4. **Run migrations** after deploy:
+4. **Deploy automatically** — `railway.json` handles the rest:
+   - **Build:** `composer install --no-dev --optimize-autoloader && php artisan config:cache`
+   - **Deploy:** `php artisan migrate --force && php artisan storage:link` (run automatically)
+   - Railway's Nixpacks auto-detects PHP and configures Nginx + PHP-FPM to serve from `public/`
+   - No Procfile needed
 
-   ```bash
-   # Via Railway dashboard: Connect → Shell → run:
-   php artisan migrate --force
-   ```
-
-   Or add a startup script in `railway.json` (already configured — migrations run on every deploy).
-
-5. **Create storage symlink** (already included in railway.json startup command).
-
-6. **Seed demo data** (optional):
+5. **Seed demo data** (optional, via Railway shell):
 
    ```bash
    php artisan db:seed
