@@ -26,7 +26,6 @@ class CrudController extends Controller
             \App\Models\HotelAmenity::class => self::READ_PUBLIC,
             \App\Models\ServiceCategory::class => self::READ_PUBLIC,
             \App\Models\ContactMessage::class => self::STAFF_OR_ADMIN,
-            \App\Models\ChannelManagerConnection::class => self::STAFF_OR_ADMIN,
             \App\Models\BookingInquiry::class => self::STAFF_OR_ADMIN,
             \App\Models\Review::class => self::STAFF_OR_ADMIN,
         ];
@@ -73,10 +72,6 @@ class CrudController extends Controller
         }
 
         if ($this->modelClass === \App\Models\ContactMessage::class && $user && $user->isStaffRole() && ! $user->isAdmin()) {
-            $query->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id));
-        }
-
-        if ($this->modelClass === \App\Models\ChannelManagerConnection::class && $user && $user->isStaffRole() && ! $user->isAdmin()) {
             $query->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id));
         }
 

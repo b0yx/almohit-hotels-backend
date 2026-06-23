@@ -12,8 +12,8 @@ class HotelPolicy extends Model
     protected function casts(): array
     {
         return [
-            'check_in_time' => 'datetime:H:i',
-            'check_out_time' => 'datetime:H:i',
+            'check_in_time' => 'time',
+            'check_out_time' => 'time',
         ];
     }
 

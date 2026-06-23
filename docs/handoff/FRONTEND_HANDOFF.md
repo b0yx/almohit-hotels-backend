@@ -518,6 +518,5 @@ GET /api/properties/{id}/readiness/
 | `POSTMAN_COLLECTION.json` | Postman collection (84 endpoints, 11 folders) |
 | `FRONTEND_HANDOFF.md` | This document |
 | `.env.example` | Environment variables for Next.js |
-| `DEMO_ACCOUNTS.md` | Demo accounts and seed data |
-| `NEXTJS_INTEGRATION_GUIDE.md` | Integration patterns and code examples |
+| `NEXTJS.env.example` | Next.js environment variables template |
 | `HANDOFF_PACKAGE.md` | Handoff summary and readiness assessment |
