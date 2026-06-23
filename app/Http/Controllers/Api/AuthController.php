@@ -156,10 +156,47 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $header = (string) $request->header('Authorization', '');
-        if (preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
+        if (preg_match('/^(?:Bearer|Token)\s+(.+)$/i', $header, $matches)) {
             ApiToken::query()->where('token', hash('sha256', $matches[1]))->delete();
         }
 
         return response()->json(null, 204);
+    }
+
+    public function activateUser(int $id): JsonResponse
+    {
+        $user = User::query()->findOrFail($id);
+        $user->forceFill(['is_active' => true])->save();
+
+        return response()->json(CompatResponse::user($user));
+    }
+
+    public function deactivateUser(int $id): JsonResponse
+    {
+        $user = User::query()->findOrFail($id);
+        $user->forceFill(['is_active' => false])->save();
+
+        return response()->json(CompatResponse::user($user));
+    }
+
+    public function changeUserRole(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['role' => ['required', 'string', 'in:customer,staff,admin']]);
+        $user = User::query()->findOrFail($id);
+        $user->forceFill([
+            'role' => $data['role'],
+            'is_staff' => $data['role'] === 'admin' || $data['role'] === 'staff',
+        ])->save();
+
+        return response()->json(CompatResponse::user($user));
+    }
+
+    public function resetUserPassword(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['password' => ['required', 'string', 'min:8']]);
+        $user = User::query()->findOrFail($id);
+        $user->forceFill(['password' => $data['password']])->save();
+
+        return response()->json(['detail' => 'Password updated successfully.']);
     }
 }

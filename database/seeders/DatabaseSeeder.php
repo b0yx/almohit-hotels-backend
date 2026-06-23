@@ -2,24 +2,69 @@
 
 namespace Database\Seeders;
 
+use App\Models\EmailOTP;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $accounts = [
+            [
+                'email' => 'admin@almohit.com',
+                'full_name' => 'Admin User',
+                'role' => User::ROLE_ADMIN,
+                'is_staff' => true,
+                'is_superuser' => true,
+                'is_active' => true,
+                'email_verified' => true,
+                'password' => 'adminpass123',
+            ],
+            [
+                'email' => 'staff@almohit.com',
+                'full_name' => 'Staff User',
+                'role' => User::ROLE_STAFF,
+                'is_staff' => true,
+                'is_active' => true,
+                'email_verified' => true,
+                'password' => 'staffpass123',
+            ],
+            [
+                'email' => 'customer@almohit.com',
+                'full_name' => 'Customer User',
+                'role' => User::ROLE_CUSTOMER,
+                'is_active' => true,
+                'email_verified' => true,
+                'password' => 'customerpass123',
+            ],
+            [
+                'email' => 'test@example.com',
+                'full_name' => 'Test User',
+                'role' => User::ROLE_CUSTOMER,
+                'is_active' => true,
+                'email_verified' => true,
+                'password' => 'testpass123',
+            ],
+        ];
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        foreach ($accounts as $data) {
+            $password = $data['password'];
+            unset($data['password']);
+
+            $user = User::query()->firstOrCreate(
+                ['email' => $data['email']],
+                $data
+            );
+
+            if ($user->wasRecentlyCreated) {
+                $user->forceFill(['password' => $password])->save();
+                EmailOTP::query()->create([
+                    'user_id' => $user->id,
+                    'hashed_code' => bcrypt('123456'),
+                    'expires_at' => now()->addMinutes(10),
+                ]);
+            }
+        }
     }
 }

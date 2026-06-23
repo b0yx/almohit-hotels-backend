@@ -12,7 +12,7 @@ class AuthenticateApiToken
     public function handle(Request $request, Closure $next): Response
     {
         $header = (string) $request->header('Authorization', '');
-        $token = preg_match('/^Bearer\s+(.+)$/i', $header, $matches) ? $matches[1] : null;
+        $token = preg_match('/^(?:Bearer|Token)\s+(.+)$/i', $header, $matches) ? $matches[1] : null;
 
         if ($token) {
             $record = ApiToken::query()->with('user')->where('token', hash('sha256', $token))->first();

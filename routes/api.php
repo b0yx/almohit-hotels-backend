@@ -34,8 +34,14 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         Route::get('/me/', [AuthController::class, 'me']);
         Route::patch('/me/', [AuthController::class, 'updateMe']);
         Route::post('/logout/', [AuthController::class, 'logout']);
-        Route::apiResource('users', CrudController::class)->parameters(['users' => 'id'])->middleware('role:admin')->only(['index', 'store', 'show', 'update', 'destroy']);
-        Route::apiResource('admins', CrudController::class)->parameters(['admins' => 'id'])->middleware('role:admin')->only(['index', 'store', 'show', 'update', 'destroy']);
+        Route::middleware('role:admin')->group(function () {
+            Route::apiResource('users', CrudController::class)->parameters(['users' => 'id'])->only(['index', 'store', 'show', 'update', 'destroy']);
+            Route::apiResource('admins', CrudController::class)->parameters(['admins' => 'id'])->only(['index', 'store', 'show', 'update', 'destroy']);
+            Route::post('/users/{id}/activate/', [AuthController::class, 'activateUser']);
+            Route::post('/users/{id}/deactivate/', [AuthController::class, 'deactivateUser']);
+            Route::post('/users/{id}/change-role/', [AuthController::class, 'changeUserRole']);
+            Route::post('/users/{id}/reset-password/', [AuthController::class, 'resetUserPassword']);
+        });
     });
 
     Route::get('/properties/available/', [HotelController::class, 'index']);
