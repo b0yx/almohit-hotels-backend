@@ -57,7 +57,7 @@ class CompatResponse
     {
         $cover = $hotel->relationLoaded('images')
             ? $hotel->images->where('is_active', true)->sortByDesc('is_cover')->sortBy('display_order')->first()
-            : $hotel->coverImage();
+            : null;
 
         $avgRating = null;
         $totalReviews = 0;

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Hotel;
+use App\Models\RoomType;
 use App\Support\CompatResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,51 +55,43 @@ class HotelController extends CrudController
     {
         $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
+        $hotel->load(['amenities', 'images']);
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
+        return response()->json(CompatResponse::hotel($hotel));
     }
 
     public function unpublish(int $id): JsonResponse
     {
         $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
+        $hotel->load(['amenities', 'images']);
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
+        return response()->json(CompatResponse::hotel($hotel));
     }
 
     public function archive(int $id): JsonResponse
     {
         $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
+        $hotel->load(['amenities', 'images']);
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
+        return response()->json(CompatResponse::hotel($hotel));
     }
 
     public function unarchive(int $id): JsonResponse
     {
         $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
+        $hotel->load(['amenities', 'images']);
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
+        return response()->json(CompatResponse::hotel($hotel));
     }
 
     public function readiness(int $id): JsonResponse
     {
         $hotel = Hotel::query()->with(['images', 'roomTypes'])->findOrFail($id);
-        $errors = [];
+        $errors = CompatResponse::computeReadinessErrors($hotel);
 
-        if (empty($hotel->name)) {
-            $errors[] = 'Property name is required.';
-        }
-        if (empty($hotel->slug)) {
-            $errors[] = 'Property slug is required.';
-        }
-        if (empty($hotel->subdomain)) {
-            $errors[] = 'Subdomain is required.';
-        }
-        if (empty($hotel->country) || empty($hotel->city)) {
-            $errors[] = 'Country and city are required.';
-        }
         if ($hotel->roomTypes->where('is_active', true)->count() === 0) {
             $errors[] = 'At least one active room type is required.';
         }
@@ -163,7 +156,7 @@ class HotelController extends CrudController
 
     public function roomsSearch(Request $request, int $id): JsonResponse
     {
-        $rooms = Hotel::query()->findOrFail($id)->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
+        $rooms = RoomType::where('hotel_id', $id)->where('is_active', true)->get()->map(fn ($room) => [
             'room_type_id' => $room->id,
             'name' => $room->name,
             'description' => $room->description,
@@ -183,8 +176,8 @@ class HotelController extends CrudController
 
     public function availability(Request $request, int $id): JsonResponse
     {
-        $hotel = Hotel::query()->findOrFail($id);
-        $units = $hotel->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
+        $hotel = Hotel::query()->with(['roomTypes' => fn ($q) => $q->where('is_active', true)])->findOrFail($id);
+        $units = $hotel->roomTypes->map(fn ($room) => [
             'id' => $room->id,
             'name' => $room->name,
             'available_units' => $room->total_units,
@@ -231,10 +224,12 @@ class HotelController extends CrudController
 
     public function publicContext(Request $request): JsonResponse
     {
+        $hotel = $request->attributes->get('public_hotel');
+
         return response()->json([
             'subdomain' => $request->attributes->get('public_hotel_subdomain'),
             'status' => $request->attributes->get('public_hotel_status'),
-            'property' => $request->attributes->get('public_hotel') ? CompatResponse::hotel($request->attributes->get('public_hotel')) : null,
+            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing('images')) : null,
         ]);
     }
 }
