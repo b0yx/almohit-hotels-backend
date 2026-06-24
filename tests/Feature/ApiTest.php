@@ -8,11 +8,18 @@ use App\Models\Review;
 use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
+    }
 
     private function headersFor(User $user): array
     {
