@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\BookingGuest;
 use App\Models\BookingInquiry;
 use App\Models\RoomType;
+use App\Services\AuditService;
 use App\Support\CompatResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,10 +58,15 @@ class BookingController extends CrudController
             }
         }
 
-        $booking->fill($this->normalizeInput($request->all()))->save();
+        $input = $this->normalizeInput($request->all());
+        $changes = AuditService::changes($booking, $input);
+        $booking->fill($input)->save();
         $this->syncManyToMany($booking, $request);
 
-        return response()->json(CompatResponse::item($booking->fresh()));
+        $fresh = $booking->fresh();
+        AuditService::log('updated', 'booking', $fresh, $changes);
+
+        return response()->json(CompatResponse::item($fresh));
     }
 
     public function destroy(int $id): JsonResponse
@@ -80,6 +86,7 @@ class BookingController extends CrudController
             }
         }
 
+        AuditService::log('deleted', 'booking', $booking);
         $booking->delete();
 
         return response()->json(null, 204);
@@ -143,8 +150,10 @@ class BookingController extends CrudController
         $bookingData['estimated_total'] = (float) ($roomType->base_price ?: 0) * $nights;
 
         $booking = DB::transaction(fn () => BookingInquiry::query()->create($bookingData));
+        $fresh = $booking->fresh(['hotel', 'roomType']);
+        AuditService::log('created', 'booking', $fresh);
 
-        return response()->json(CompatResponse::booking($booking->fresh(['hotel', 'roomType'])), 201);
+        return response()->json(CompatResponse::booking($fresh), 201);
     }
 
     public function inquiry(Request $request): JsonResponse
@@ -199,6 +208,8 @@ class BookingController extends CrudController
             return $booking;
         });
 
+        AuditService::log('inquiry_created', 'booking', $booking);
+
         return response()->json([
             'booking_id' => $booking->id,
             'customer_name' => $booking->customer_name,
@@ -232,7 +243,10 @@ class BookingController extends CrudController
             }
         }
 
+        $oldStatus = $booking->status;
         $booking->forceFill(['status' => 'confirmed'])->save();
+
+        AuditService::log('confirmed', 'booking', $booking, ['status' => ['old' => $oldStatus, 'new' => 'confirmed']]);
 
         return response()->json([
             'booking_id' => $booking->id,
@@ -259,7 +273,10 @@ class BookingController extends CrudController
             }
         }
 
+        $oldStatus = $booking->status;
         $booking->forceFill(['status' => 'cancelled'])->save();
+
+        AuditService::log('cancelled', 'booking', $booking, ['status' => ['old' => $oldStatus, 'new' => 'cancelled']]);
 
         return response()->json(CompatResponse::booking($booking->fresh(['hotel', 'roomType', 'guests'])));
     }

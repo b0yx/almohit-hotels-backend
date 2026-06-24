@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Hotel;
 use App\Models\RoomType;
+use App\Services\AuditService;
 use App\Support\CompatResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,12 +43,16 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $data = $this->normalizeInput($validated);
         $nested = $this->extractNestedHotelPayload($data);
+        $changes = AuditService::changes($hotel, $data);
         $hotel->fill($data)->save();
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
         $this->syncCoverImage($hotel, $request->input('cover_image_id'));
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus'])));
+        $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus']);
+        AuditService::log('updated', 'hotel', $fresh, $changes);
+
+        return response()->json(CompatResponse::hotel($fresh));
     }
 
     public function destroy(int $id): JsonResponse
@@ -92,15 +97,21 @@ class HotelController extends CrudController
         $this->syncNestedHotelRelations($hotel, $nested);
         $this->syncCoverImage($hotel, $request->input('cover_image_id'));
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus'])), 201);
+        $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus']);
+        AuditService::log('created', 'hotel', $fresh);
+
+        return response()->json(CompatResponse::hotel($fresh), 201);
     }
 
     public function publish(Request $request, int $id): JsonResponse
     {
         $this->authorizeStaffHotelAccess($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
+        $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
         $hotel->load(['amenities', 'images']);
+
+        AuditService::log('published', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'published']]);
 
         return response()->json(CompatResponse::hotel($hotel));
     }
@@ -109,8 +120,11 @@ class HotelController extends CrudController
     {
         $this->authorizeStaffHotelAccess($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
+        $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
         $hotel->load(['amenities', 'images']);
+
+        AuditService::log('unpublished', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
         return response()->json(CompatResponse::hotel($hotel));
     }
@@ -119,8 +133,11 @@ class HotelController extends CrudController
     {
         $this->authorizeStaffHotelAccess($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
+        $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
         $hotel->load(['amenities', 'images']);
+
+        AuditService::log('archived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'archived']]);
 
         return response()->json(CompatResponse::hotel($hotel));
     }
@@ -129,8 +146,11 @@ class HotelController extends CrudController
     {
         $this->authorizeStaffHotelAccess($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
+        $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
         $hotel->load(['amenities', 'images']);
+
+        AuditService::log('unarchived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
         return response()->json(CompatResponse::hotel($hotel));
     }

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
-use App\Models\AuditLog;
 use App\Models\EmailOTP;
+use App\Services\AuditService;
 use App\Models\PasswordResetOtp;
 use App\Models\User;
 use App\Services\BrevoMailService;
@@ -48,6 +48,8 @@ class AuthController extends Controller
         ]);
 
         $code = $this->sendEmailVerificationOtp($user);
+
+        AuditService::log('registered', 'user', $user);
 
         if (app()->environment('local', 'testing')) {
             return response()->json(['detail' => 'Account created. Please check your email for the verification code.', 'debug_code' => $code], 201);
@@ -184,10 +186,19 @@ class AuthController extends Controller
             return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
         }
 
-        $user->fill($request->validate([
+        $data = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
-        ]))->save();
+        ]);
+
+        $changes = AuditService::changes($user, $data);
+        $user->fill($data)->save();
+
+        if ($changes) {
+            AuditService::log('profile_updated', 'user', $user, $changes);
+        } elseif ($data) {
+            AuditService::log('profile_updated', 'user', $user);
+        }
 
         return response()->json(CompatResponse::user($user));
     }
@@ -207,6 +218,8 @@ class AuthController extends Controller
             }
         }
 
+        AuditService::log('logout', 'session', $request->user());
+
         return response()->json(null, 204);
     }
 
@@ -216,20 +229,7 @@ class AuthController extends Controller
         $wasActive = $user->is_active;
         $user->forceFill(['is_active' => true])->save();
 
-        AuditLog::query()->create([
-            'action' => 'activate',
-            'content_type' => 'user',
-            'object_id' => (string) $user->id,
-            'object_repr' => $user->email,
-            'actor_id' => request()->user()?->id,
-            'actor_email' => request()->user()?->email ?? '',
-            'actor_name' => request()->user()?->full_name ?? '',
-            'changes' => ['is_active' => ['old' => $wasActive, 'new' => true]],
-            'request_method' => request()->method(),
-            'request_path' => request()->path(),
-            'ip_address' => request()->ip(),
-            'created_at' => now(),
-        ]);
+        AuditService::log('activate', 'user', $user, ['is_active' => ['old' => $wasActive, 'new' => true]]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -240,20 +240,7 @@ class AuthController extends Controller
         $wasActive = $user->is_active;
         $user->forceFill(['is_active' => false])->save();
 
-        AuditLog::query()->create([
-            'action' => 'deactivate',
-            'content_type' => 'user',
-            'object_id' => (string) $user->id,
-            'object_repr' => $user->email,
-            'actor_id' => request()->user()?->id,
-            'actor_email' => request()->user()?->email ?? '',
-            'actor_name' => request()->user()?->full_name ?? '',
-            'changes' => ['is_active' => ['old' => $wasActive, 'new' => false]],
-            'request_method' => request()->method(),
-            'request_path' => request()->path(),
-            'ip_address' => request()->ip(),
-            'created_at' => now(),
-        ]);
+        AuditService::log('deactivate', 'user', $user, ['is_active' => ['old' => $wasActive, 'new' => false]]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -268,20 +255,7 @@ class AuthController extends Controller
             'is_staff' => $data['role'] === 'admin' || $data['role'] === 'staff',
         ])->save();
 
-        AuditLog::query()->create([
-            'action' => 'change_role',
-            'content_type' => 'user',
-            'object_id' => (string) $user->id,
-            'object_repr' => $user->email,
-            'actor_id' => $request->user()?->id,
-            'actor_email' => $request->user()?->email ?? '',
-            'actor_name' => $request->user()?->full_name ?? '',
-            'changes' => ['role' => ['old' => $oldRole, 'new' => $data['role']]],
-            'request_method' => $request->method(),
-            'request_path' => $request->path(),
-            'ip_address' => $request->ip(),
-            'created_at' => now(),
-        ]);
+        AuditService::log('change_role', 'user', $user, ['role' => ['old' => $oldRole, 'new' => $data['role']]]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -292,20 +266,7 @@ class AuthController extends Controller
         $user = User::query()->findOrFail($id);
         $user->forceFill(['password' => $data['password']])->save();
 
-        AuditLog::query()->create([
-            'action' => 'reset_password',
-            'content_type' => 'user',
-            'object_id' => (string) $user->id,
-            'object_repr' => $user->email,
-            'actor_id' => $request->user()?->id,
-            'actor_email' => $request->user()?->email ?? '',
-            'actor_name' => $request->user()?->full_name ?? '',
-            'changes' => ['password_reset' => true],
-            'request_method' => $request->method(),
-            'request_path' => $request->path(),
-            'ip_address' => $request->ip(),
-            'created_at' => now(),
-        ]);
+        AuditService::log('reset_password', 'user', $user, ['password_reset' => true]);
 
         app(BrevoMailService::class)->sendPasswordChangedByAdmin($user->email, $user->full_name);
 
@@ -336,6 +297,8 @@ class AuthController extends Controller
 
             app(BrevoMailService::class)->sendOtp($email, 'Reset Your Password', $code, 'password_reset');
             $debugCode = $code;
+
+            AuditService::log('password_reset_requested', 'user', $user);
         }
 
         $response = ['detail' => 'If the email exists, an OTP has been sent.'];
@@ -386,6 +349,8 @@ class AuthController extends Controller
             $otp->forceFill(['used_at' => now(), 'attempts' => 0])->save();
             $user->forceFill(['password' => $data['password']])->save();
         });
+
+        AuditService::log('password_reset', 'user', $user, ['password_reset' => true]);
 
         return response()->json(['detail' => 'Password has been reset successfully.']);
     }
