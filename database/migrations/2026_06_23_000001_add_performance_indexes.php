@@ -50,7 +50,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('reviews', fn (Blueprint $t) => $t->dropIndex('idx_reviews_hotel_active'));
-        Schema::table('booking_inquiries', fn (Blueprint $t) => $t->dropIndex(['idx_booking_status', 'idx_booking_customer_status', 'idx_booking_hotel_status']));
+        Schema::table('booking_inquiries', function (Blueprint $t) {
+            $t->dropIndex('idx_booking_status');
+            $t->dropIndex('idx_booking_customer_status');
+            $t->dropIndex('idx_booking_hotel_status');
+        });
         Schema::table('room_type_images', fn (Blueprint $t) => $t->dropIndex('idx_room_type_images_active'));
         Schema::table('service_images', fn (Blueprint $t) => $t->dropIndex('idx_service_images_active'));
         Schema::table('contact_messages', fn (Blueprint $t) => $t->dropIndex('idx_contact_status'));

@@ -17,7 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.token' => \App\Http\Middleware\AuthenticateApiToken::class,
             'tenant.context' => \App\Http\Middleware\ResolvePublicHotel::class,
             'role' => \App\Http\Middleware\RequireRole::class,
-            'permission' => \App\Http\Middleware\RequirePermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
