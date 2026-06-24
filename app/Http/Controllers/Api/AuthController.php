@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PasswordChangedByAdminMail;
 use App\Mail\PasswordResetOtpMail;
 use App\Models\ApiToken;
+use App\Models\AuditLog;
 use App\Models\EmailOTP;
 use App\Models\PasswordResetOtp;
 use App\Models\User;
@@ -215,7 +217,23 @@ class AuthController extends Controller
     public function activateUser(int $id): JsonResponse
     {
         $user = User::query()->findOrFail($id);
+        $wasActive = $user->is_active;
         $user->forceFill(['is_active' => true])->save();
+
+        AuditLog::query()->create([
+            'action' => 'activate',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => request()->user()?->id,
+            'actor_email' => request()->user()?->email ?? '',
+            'actor_name' => request()->user()?->full_name ?? '',
+            'changes' => ['is_active' => ['old' => $wasActive, 'new' => true]],
+            'request_method' => request()->method(),
+            'request_path' => request()->path(),
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -223,7 +241,23 @@ class AuthController extends Controller
     public function deactivateUser(int $id): JsonResponse
     {
         $user = User::query()->findOrFail($id);
+        $wasActive = $user->is_active;
         $user->forceFill(['is_active' => false])->save();
+
+        AuditLog::query()->create([
+            'action' => 'deactivate',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => request()->user()?->id,
+            'actor_email' => request()->user()?->email ?? '',
+            'actor_name' => request()->user()?->full_name ?? '',
+            'changes' => ['is_active' => ['old' => $wasActive, 'new' => false]],
+            'request_method' => request()->method(),
+            'request_path' => request()->path(),
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -232,10 +266,26 @@ class AuthController extends Controller
     {
         $data = $request->validate(['role' => ['required', 'string', 'in:customer,staff,admin']]);
         $user = User::query()->findOrFail($id);
+        $oldRole = $user->role;
         $user->forceFill([
             'role' => $data['role'],
             'is_staff' => $data['role'] === 'admin' || $data['role'] === 'staff',
         ])->save();
+
+        AuditLog::query()->create([
+            'action' => 'change_role',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => $request->user()?->id,
+            'actor_email' => $request->user()?->email ?? '',
+            'actor_name' => $request->user()?->full_name ?? '',
+            'changes' => ['role' => ['old' => $oldRole, 'new' => $data['role']]],
+            'request_method' => $request->method(),
+            'request_path' => $request->path(),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+        ]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -245,6 +295,23 @@ class AuthController extends Controller
         $data = $request->validate(['password' => ['required', 'string', 'min:8']]);
         $user = User::query()->findOrFail($id);
         $user->forceFill(['password' => $data['password']])->save();
+
+        AuditLog::query()->create([
+            'action' => 'reset_password',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => $request->user()?->id,
+            'actor_email' => $request->user()?->email ?? '',
+            'actor_name' => $request->user()?->full_name ?? '',
+            'changes' => ['password_reset' => true],
+            'request_method' => $request->method(),
+            'request_path' => $request->path(),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+        ]);
+
+        Mail::to($user->email)->send(new PasswordChangedByAdminMail($user));
 
         return response()->json(['detail' => 'Password updated successfully.']);
     }
