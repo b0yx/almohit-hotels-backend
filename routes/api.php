@@ -70,6 +70,8 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         Route::post('/login/', [AuthController::class, 'login'])->middleware('throttle:10,15');
         Route::post('/admin/login/', [AuthController::class, 'adminLogin'])->middleware('throttle:10,15');
         Route::post('/customer/login/', [AuthController::class, 'customerLogin'])->middleware('throttle:10,15');
+        Route::post('/forgot-password/', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,60');
+        Route::post('/reset-password/', [AuthController::class, 'resetPassword'])->middleware('throttle:10,15');
         Route::get('/me/', [AuthController::class, 'me']);
         Route::patch('/me/', [AuthController::class, 'updateMe']);
         Route::post('/logout/', [AuthController::class, 'logout']);

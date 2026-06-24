@@ -2038,4 +2038,100 @@ Admin: Any booking.
     )]
     public function route_84() {}
 
+    // ─── Schema: ForgotPasswordResponse ────────────────────────────────
+    #[OA\Schema(
+        schema: "ForgotPasswordResponse",
+        type: "object",
+        properties: [
+            new OA\Property(property: "detail", type: "string", nullable: false),
+        ]
+    )]
+    private $ForgotPasswordResponse;
+
+    // ─── Schema: ResetPasswordResponse ────────────────────────────────
+    #[OA\Schema(
+        schema: "ResetPasswordResponse",
+        type: "object",
+        properties: [
+            new OA\Property(property: "detail", type: "string", nullable: false),
+            new OA\Property(property: "code", type: "string", nullable: false),
+        ]
+    )]
+    private $ResetPasswordResponse;
+
+    // ─── Endpoint: Post /api/auth/forgot-password/ ──────────────────────────
+    #[OA\Post(
+        path: "/api/auth/forgot-password/",
+        summary: "Request password reset OTP",
+        description: "",
+        tags: ["Authentication"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: [
+                "application/json" => new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(property: "email", type: "string", format: "email"),
+                        ]
+                    )
+                ),
+            ]
+        ),
+        responses: [
+            new OA\Response(
+                response: "200",
+                description: "OTP sent if email exists",
+                headers: [],
+                content: [
+                    "application/json" => new OA\MediaType(
+                        mediaType: "application/json",
+                        schema: new OA\Schema(ref: "#/components/schemas/ForgotPasswordResponse")
+                    ),
+                ]
+            ),
+        ]
+    )]
+    public function route_85() {}
+
+    // ─── Endpoint: Post /api/auth/reset-password/ ──────────────────────────
+    #[OA\Post(
+        path: "/api/auth/reset-password/",
+        summary: "Reset password with OTP",
+        description: "",
+        tags: ["Authentication"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: [
+                "application/json" => new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(property: "email", type: "string", format: "email"),
+                            new OA\Property(property: "code", type: "string", description: "6-digit OTP"),
+                            new OA\Property(property: "password", type: "string", format: "password"),
+                            new OA\Property(property: "password_confirmation", type: "string", format: "password"),
+                        ]
+                    )
+                ),
+            ]
+        ),
+        responses: [
+            new OA\Response(
+                response: "200",
+                description: "Password reset successfully"
+            ),
+            new OA\Response(
+                response: "400",
+                description: "Invalid OTP"
+            ),
+            new OA\Response(
+                response: "429",
+                description: "Too many attempts"
+            ),
+        ]
+    )]
+    public function route_86() {}
 }
