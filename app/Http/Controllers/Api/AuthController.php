@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Mail\PasswordResetOtpMail;
 use App\Models\ApiToken;
+use App\Models\AuditLog;
 use App\Models\EmailOTP;
 use App\Models\PasswordResetOtp;
 use App\Models\User;
+use App\Services\BrevoMailService;
 use App\Support\CompatResponse;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -47,12 +47,7 @@ class AuthController extends Controller
             'password' => $data['password'],
         ]);
 
-        $code = (string) random_int(100000, 999999);
-        EmailOTP::query()->create([
-            'user_id' => $user->id,
-            'hashed_code' => Hash::make($code),
-            'expires_at' => now()->addMinutes(10),
-        ]);
+        $code = $this->sendEmailVerificationOtp($user);
 
         if (app()->environment('local', 'testing')) {
             return response()->json(['detail' => 'Account created. Please check your email for the verification code.', 'debug_code' => $code], 201);
@@ -104,12 +99,7 @@ class AuthController extends Controller
 
         $user = User::query()->where('email', $email)->where('email_verified', false)->first();
         if ($user) {
-            $code = (string) random_int(100000, 999999);
-            EmailOTP::query()->create([
-                'user_id' => $user->id,
-                'hashed_code' => Hash::make($code),
-                'expires_at' => now()->addMinutes(10),
-            ]);
+            $this->sendEmailVerificationOtp($user);
         }
 
         $limiter->hit($resendKey, 60);
@@ -127,7 +117,15 @@ class AuthController extends Controller
         }
 
         if (! $user->email_verified) {
-            return response()->json(['code' => 'email_not_verified', 'detail' => 'Please verify your email before signing in.', 'email' => $user->email], 400);
+            $code = $this->sendEmailVerificationOtp($user);
+
+            $response = ['code' => 'email_not_verified', 'detail' => 'Please verify your email before signing in.', 'email' => $user->email];
+
+            if (app()->environment('local', 'testing')) {
+                $response['debug_code'] = $code;
+            }
+
+            return response()->json($response, 400);
         }
 
         if (! $user->is_active) {
@@ -215,7 +213,23 @@ class AuthController extends Controller
     public function activateUser(int $id): JsonResponse
     {
         $user = User::query()->findOrFail($id);
+        $wasActive = $user->is_active;
         $user->forceFill(['is_active' => true])->save();
+
+        AuditLog::query()->create([
+            'action' => 'activate',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => request()->user()?->id,
+            'actor_email' => request()->user()?->email ?? '',
+            'actor_name' => request()->user()?->full_name ?? '',
+            'changes' => ['is_active' => ['old' => $wasActive, 'new' => true]],
+            'request_method' => request()->method(),
+            'request_path' => request()->path(),
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -223,7 +237,23 @@ class AuthController extends Controller
     public function deactivateUser(int $id): JsonResponse
     {
         $user = User::query()->findOrFail($id);
+        $wasActive = $user->is_active;
         $user->forceFill(['is_active' => false])->save();
+
+        AuditLog::query()->create([
+            'action' => 'deactivate',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => request()->user()?->id,
+            'actor_email' => request()->user()?->email ?? '',
+            'actor_name' => request()->user()?->full_name ?? '',
+            'changes' => ['is_active' => ['old' => $wasActive, 'new' => false]],
+            'request_method' => request()->method(),
+            'request_path' => request()->path(),
+            'ip_address' => request()->ip(),
+            'created_at' => now(),
+        ]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -232,10 +262,26 @@ class AuthController extends Controller
     {
         $data = $request->validate(['role' => ['required', 'string', 'in:customer,staff,admin']]);
         $user = User::query()->findOrFail($id);
+        $oldRole = $user->role;
         $user->forceFill([
             'role' => $data['role'],
             'is_staff' => $data['role'] === 'admin' || $data['role'] === 'staff',
         ])->save();
+
+        AuditLog::query()->create([
+            'action' => 'change_role',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => $request->user()?->id,
+            'actor_email' => $request->user()?->email ?? '',
+            'actor_name' => $request->user()?->full_name ?? '',
+            'changes' => ['role' => ['old' => $oldRole, 'new' => $data['role']]],
+            'request_method' => $request->method(),
+            'request_path' => $request->path(),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+        ]);
 
         return response()->json(CompatResponse::user($user));
     }
@@ -245,6 +291,23 @@ class AuthController extends Controller
         $data = $request->validate(['password' => ['required', 'string', 'min:8']]);
         $user = User::query()->findOrFail($id);
         $user->forceFill(['password' => $data['password']])->save();
+
+        AuditLog::query()->create([
+            'action' => 'reset_password',
+            'content_type' => 'user',
+            'object_id' => (string) $user->id,
+            'object_repr' => $user->email,
+            'actor_id' => $request->user()?->id,
+            'actor_email' => $request->user()?->email ?? '',
+            'actor_name' => $request->user()?->full_name ?? '',
+            'changes' => ['password_reset' => true],
+            'request_method' => $request->method(),
+            'request_path' => $request->path(),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+        ]);
+
+        app(BrevoMailService::class)->sendPasswordChangedByAdmin($user->email, $user->full_name);
 
         return response()->json(['detail' => 'Password updated successfully.']);
     }
@@ -271,7 +334,7 @@ class AuthController extends Controller
                 'expires_at' => now()->addMinutes(10),
             ]);
 
-            Mail::to($email)->send(new PasswordResetOtpMail($code));
+            app(BrevoMailService::class)->sendOtp($email, 'Reset Your Password', $code, 'password_reset');
             $debugCode = $code;
         }
 
@@ -325,5 +388,30 @@ class AuthController extends Controller
         });
 
         return response()->json(['detail' => 'Password has been reset successfully.']);
+    }
+
+    private function sendEmailVerificationOtp(User $user): string
+    {
+        EmailOTP::query()
+            ->where('user_id', $user->id)
+            ->whereNull('verified_at')
+            ->update(['verified_at' => now()]);
+
+        $code = (string) random_int(100000, 999999);
+
+        EmailOTP::query()->create([
+            'user_id' => $user->id,
+            'hashed_code' => Hash::make($code),
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        app(BrevoMailService::class)->sendOtp(
+            $user->email,
+            'Verify Your Email Address',
+            $code,
+            'email_verification',
+        );
+
+        return $code;
     }
 }

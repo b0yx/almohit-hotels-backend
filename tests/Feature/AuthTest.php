@@ -8,11 +8,18 @@ use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
+    }
 
     public function test_signup_creates_user_and_returns_debug_code_in_local(): void
     {

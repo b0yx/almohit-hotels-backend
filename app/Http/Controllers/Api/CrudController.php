@@ -30,7 +30,7 @@ class CrudController extends Controller
         ];
     }
 
-    private function authorizeAction(Request $request, string $action, ?int $resourceId = null): bool
+    protected function authorizeAction(Request $request, string $action, ?int $resourceId = null): bool
     {
         $user = $request->user();
         $level = $this->accessMap[$this->modelClass] ?? self::STAFF_OR_ADMIN;
@@ -95,7 +95,7 @@ class CrudController extends Controller
         return response()->json(CompatResponse::item($model->fresh()), 201);
     }
 
-    private function eagerLoads(): array
+    protected function eagerLoads(): array
     {
         return match ($this->modelClass) {
             \App\Models\RoomType::class => ['images', 'prices'],

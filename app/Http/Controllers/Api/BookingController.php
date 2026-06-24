@@ -17,6 +17,74 @@ class BookingController extends CrudController
         parent::__construct(BookingInquiry::class);
     }
 
+    public function show(int $id): JsonResponse
+    {
+        $request = request();
+        if (! $this->authorizeAction($request, 'show', $id)) {
+            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        }
+
+        $booking = BookingInquiry::query()->findOrFail($id);
+        $user = $request->user();
+
+        if ($user && $user->isStaffRole() && ! $user->isAdmin()) {
+            $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
+            if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to access this booking.'], 403);
+            }
+        }
+
+        foreach ($this->eagerLoads() as $relation) {
+            $booking->load($relation);
+        }
+
+        return response()->json(CompatResponse::item($booking));
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        if (! $this->authorizeAction($request, 'update', $id)) {
+            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        }
+
+        $booking = BookingInquiry::query()->findOrFail($id);
+        $user = $request->user();
+
+        if ($user && $user->isStaffRole() && ! $user->isAdmin()) {
+            $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
+            if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to update this booking.'], 403);
+            }
+        }
+
+        $booking->fill($this->normalizeInput($request->all()))->save();
+        $this->syncManyToMany($booking, $request);
+
+        return response()->json(CompatResponse::item($booking->fresh()));
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $request = request();
+        if (! $this->authorizeAction($request, 'destroy', $id)) {
+            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        }
+
+        $booking = BookingInquiry::query()->findOrFail($id);
+        $user = $request->user();
+
+        if ($user && $user->isStaffRole() && ! $user->isAdmin()) {
+            $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
+            if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to delete this booking.'], 403);
+            }
+        }
+
+        $booking->delete();
+
+        return response()->json(null, 204);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = BookingInquiry::query()->with(['hotel', 'roomType', 'guests']);
