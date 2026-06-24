@@ -55,7 +55,9 @@ class CompatResponse
 
     public static function hotel(Hotel $hotel): array
     {
-        $cover = $hotel->coverImage();
+        $cover = $hotel->relationLoaded('images')
+            ? $hotel->images->where('is_active', true)->sortByDesc('is_cover')->sortBy('display_order')->first()
+            : $hotel->coverImage();
 
         $avgRating = null;
         $totalReviews = 0;
@@ -71,6 +73,7 @@ class CompatResponse
         $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
         $amenities = $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [];
         $images = $hotel->relationLoaded('images') ? $hotel->images->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
+        $readinessErrors = self::computeReadinessErrors($hotel);
 
         return [
             'id' => $hotel->id,
@@ -109,8 +112,8 @@ class CompatResponse
             'publishing_status' => $hotel->publishing_status,
             'published_at' => optional($hotel->published_at)->toJSON(),
             'owner' => $hotel->owner_id,
-            'readiness_errors' => self::computeReadinessErrors($hotel),
-            'is_ready_to_publish' => empty(self::computeReadinessErrors($hotel)),
+            'readiness_errors' => $readinessErrors,
+            'is_ready_to_publish' => empty($readinessErrors),
             'latitude' => $hotel->latitude,
             'longitude' => $hotel->longitude,
             'created_at' => optional($hotel->created_at)->toJSON(),

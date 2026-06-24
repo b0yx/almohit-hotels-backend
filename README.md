@@ -226,7 +226,6 @@ Full API documentation is available in several formats:
 | **OpenAPI Spec (JSON)** | [`docs/api/OPENAPI_SPEC.json`](docs/api/OPENAPI_SPEC.json) | JSON version for tool imports |
 | **Postman Collection** | [`docs/api/POSTMAN_COLLECTION.json`](docs/api/POSTMAN_COLLECTION.json) | 84 endpoints across 11 folders |
 | **API Reference** | [`docs/api/API.md`](docs/api/API.md) | Quick reference and navigation |
-| **Frontend Handoff** | [`docs/handoff/FRONTEND_HANDOFF.md`](docs/handoff/FRONTEND_HANDOFF.md) | Comprehensive integration guide |
 | **Developer Guide** | [`docs/deployment/DEVELOPMENT.md`](docs/deployment/DEVELOPMENT.md) | Full backend developer documentation |
 | **Knowledge Transfer** | [`docs/architecture/PROJECT_KNOWLEDGE_TRANSFER.md`](docs/architecture/PROJECT_KNOWLEDGE_TRANSFER.md) | Comprehensive project reference (942 lines) |
 
@@ -321,8 +320,7 @@ almohit-hotels-backend/
 ├── docs/
 │   ├── api/                     # OpenAPI spec, Postman collection
 │   ├── architecture/            # Project knowledge transfer
-│   ├── deployment/              # Deployment guides
-│   └── handoff/                 # Frontend integration docs
+│   └── deployment/              # Deployment guides
 ├── public/                      # Web server document root
 ├── resources/                   # Views, CSS, JS
 ├── routes/

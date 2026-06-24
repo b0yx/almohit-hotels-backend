@@ -52,39 +52,39 @@ class HotelController extends CrudController
 
     public function publish(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
+        $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
 
-        return response()->json(CompatResponse::hotel($hotel));
+        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
     }
 
     public function unpublish(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
+        $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
 
-        return response()->json(CompatResponse::hotel($hotel));
+        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
     }
 
     public function archive(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
+        $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
 
-        return response()->json(CompatResponse::hotel($hotel));
+        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
     }
 
     public function unarchive(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
+        $hotel = Hotel::query()->findOrFail($id);
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
 
-        return response()->json(CompatResponse::hotel($hotel));
+        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])));
     }
 
     public function readiness(int $id): JsonResponse
     {
-        $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities'])->findOrFail($id);
+        $hotel = Hotel::query()->with(['images', 'roomTypes'])->findOrFail($id);
         $errors = [];
 
         if (empty($hotel->name)) {
@@ -99,10 +99,10 @@ class HotelController extends CrudController
         if (empty($hotel->country) || empty($hotel->city)) {
             $errors[] = 'Country and city are required.';
         }
-        if ($hotel->roomTypes()->where('is_active', true)->count() === 0) {
+        if ($hotel->roomTypes->where('is_active', true)->count() === 0) {
             $errors[] = 'At least one active room type is required.';
         }
-        if ($hotel->images()->where('is_active', true)->count() === 0) {
+        if ($hotel->images->where('is_active', true)->count() === 0) {
             $errors[] = 'At least one active property image is required.';
         }
 
@@ -163,7 +163,7 @@ class HotelController extends CrudController
 
     public function roomsSearch(Request $request, int $id): JsonResponse
     {
-        $rooms = Hotel::query()->with('roomTypes')->findOrFail($id)->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
+        $rooms = Hotel::query()->findOrFail($id)->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
             'room_type_id' => $room->id,
             'name' => $room->name,
             'description' => $room->description,
@@ -183,7 +183,7 @@ class HotelController extends CrudController
 
     public function availability(Request $request, int $id): JsonResponse
     {
-        $hotel = Hotel::query()->with('roomTypes')->findOrFail($id);
+        $hotel = Hotel::query()->findOrFail($id);
         $units = $hotel->roomTypes()->where('is_active', true)->get()->map(fn ($room) => [
             'id' => $room->id,
             'name' => $room->name,
