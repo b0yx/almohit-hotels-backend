@@ -13,7 +13,7 @@ use App\Models\ServiceImage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -36,6 +36,8 @@ class E2EComprehensiveTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
 
         $this->admin = User::create([
             'email' => 'admin@test.com', 'full_name' => 'Admin', 'role' => 'admin',
@@ -244,19 +246,23 @@ class E2EComprehensiveTest extends TestCase
 
     public function test_p2_forgot_password_sends_email(): void
     {
-        Mail::fake();
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
         $r = $this->postJson('/api/auth/forgot-password/', ['email' => 'customer@test.com']);
         $r->assertOk();
         $this->assertStringContainsString('If the email exists', $r->json('detail'));
-        Mail::assertSent(\App\Mail\PasswordResetOtpMail::class);
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://api.brevo.com/v3/smtp/email'
+                && $request['to'][0]['email'] === 'customer@test.com'
+                && str_contains($request['subject'], 'Reset Your Password');
+        });
     }
 
     public function test_p2_forgot_password_nonexistent_email(): void
     {
-        Mail::fake();
+        Http::fake();
         $r = $this->postJson('/api/auth/forgot-password/', ['email' => 'ghost@test.com']);
         $r->assertOk();
-        Mail::assertNothingSent();
+        Http::assertNothingSent();
     }
 
     public function test_p2_full_password_reset_flow(): void
@@ -734,10 +740,13 @@ class E2EComprehensiveTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'change_role', 'object_id' => (string) $target->id, 'actor_id' => $this->admin->id]);
 
         // Reset password with email notification
-        Mail::fake();
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
         $this->postJson('/api/auth/users/'.$target->id.'/reset-password/', ['password' => 'newpass123'], $this->auth($this->adminToken))->assertOk();
         $this->assertDatabaseHas('audit_logs', ['action' => 'reset_password', 'object_id' => (string) $target->id, 'actor_id' => $this->admin->id]);
-        Mail::assertSent(\App\Mail\PasswordChangedByAdminMail::class);
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://api.brevo.com/v3/smtp/email'
+                && str_contains($request['subject'], 'Your Password Has Been Changed');
+        });
     }
 
     public function test_p8_sql_injection_attempts(): void

@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Mail\PasswordResetOtpMail;
 use App\Models\PasswordResetOtp;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -19,6 +18,8 @@ class PasswordResetTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
 
         $this->user = User::create([
             'email' => 'user@example.com',
@@ -267,21 +268,24 @@ class PasswordResetTest extends TestCase
 
     public function test_email_is_sent_when_forgot_password_is_called(): void
     {
-        Mail::fake();
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
 
         $this->postJson('/api/auth/forgot-password/', ['email' => 'user@example.com']);
 
-        Mail::assertSent(PasswordResetOtpMail::class, function ($mail) {
-            return $mail->hasTo('user@example.com');
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://api.brevo.com/v3/smtp/email'
+                && $request->method() === 'POST'
+                && $request['to'][0]['email'] === 'user@example.com'
+                && str_contains($request['subject'], 'Reset Your Password');
         });
     }
 
     public function test_email_is_not_sent_for_nonexisting_email(): void
     {
-        Mail::fake();
+        Http::fake();
 
         $this->postJson('/api/auth/forgot-password/', ['email' => 'nonexistent@example.com']);
 
-        Mail::assertNothingSent();
+        Http::assertNothingSent();
     }
 }

@@ -9,7 +9,7 @@ use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -31,6 +31,8 @@ class ProductionReadinessTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
 
         $this->admin = User::create([
             'email' => 'admin@test.com', 'full_name' => 'Admin', 'role' => 'admin',
@@ -171,7 +173,7 @@ class ProductionReadinessTest extends TestCase
 
     public function test_admin_reset_user_password_creates_audit_log_and_sends_email(): void
     {
-        Mail::fake();
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(null, 201)]);
 
         $target = User::create([
             'email' => 'target@test.com', 'full_name' => 'Target', 'role' => 'customer',
@@ -188,8 +190,10 @@ class ProductionReadinessTest extends TestCase
             'object_id' => (string) $target->id,
             'actor_id' => $this->admin->id,
         ]);
-        Mail::assertSent(\App\Mail\PasswordChangedByAdminMail::class, function ($mail) use ($target) {
-            return $mail->hasTo($target->email) && $mail->user->id === $target->id;
+        Http::assertSent(function ($request) use ($target) {
+            return $request->url() === 'https://api.brevo.com/v3/smtp/email'
+                && $request['to'][0]['email'] === $target->email
+                && str_contains($request['subject'], 'Your Password Has Been Changed');
         });
     }
 

@@ -31,6 +31,23 @@ Set these in the Railway dashboard under your project's **Variables** tab.
 | `LOG_CHANNEL` | ❌ | `stderr` | Defaults to `stack`, Railway captures stderr |
 | `LOG_LEVEL` | ❌ | `warning` | Defaults to `debug` |
 
+### Brevo API Email Configuration
+
+Transactional emails (OTP verification, password reset, admin notifications) are sent through the **Brevo API** (HTTP) instead of SMTP.
+
+| Variable | Required | Example Value | Notes |
+|----------|:--------:|---------------|-------|
+| `MAIL_PROVIDER` | ✅ | `brevo` | Must be set to `brevo` |
+| `BREVO_API_KEY` | ✅ | *(your Brevo API v3 key)* | Generate from Brevo dashboard → SMTP & API → API Keys |
+| `MAIL_FROM_ADDRESS` | ✅ | `noreply@almohit.com` | Verified sender in Brevo |
+| `MAIL_FROM_NAME` | ❌ | `Almohit Hotels` | Defaults to `APP_NAME` |
+
+**Notes:**
+- SMTP variables (`MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, etc.) are **not required** when using Brevo API.
+- The Brevo HTTP API avoids SMTP IP authorization issues (e.g. `525 5.7.1 Unauthorized IP address`).
+- On Railway, add `BREVO_API_KEY` as a secret environment variable.
+- Do **not** commit the real API key to any repository.
+
 ### Railway PostgreSQL Database
 
 Railway can provision a PostgreSQL database for your project:
