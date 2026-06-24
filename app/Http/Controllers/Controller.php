@@ -20,13 +20,6 @@ use OpenApi\Attributes as OA;
     bearerFormat: "JWT",
     description: "Token returned from /api/auth/login/ as access field."
 )]
-#[OA\Get(
-    path: "/api/health/",
-    summary: "Health check",
-    responses: [
-        new OA\Response(response: 200, description: "OK")
-    ]
-)]
 abstract class Controller
 {
     //

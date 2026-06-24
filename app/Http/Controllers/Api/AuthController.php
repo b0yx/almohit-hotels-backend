@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PasswordResetOtpMail;
 use App\Models\ApiToken;
 use App\Models\EmailOTP;
+use App\Models\PasswordResetOtp;
 use App\Models\User;
 use App\Support\CompatResponse;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -243,5 +247,83 @@ class AuthController extends Controller
         $user->forceFill(['password' => $data['password']])->save();
 
         return response()->json(['detail' => 'Password updated successfully.']);
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email']]);
+        $email = strtolower($data['email']);
+        $user = User::query()->where('email', $email)->first();
+
+        $debugCode = null;
+
+        if ($user) {
+            PasswordResetOtp::query()
+                ->where('email', $email)
+                ->whereNull('used_at')
+                ->where('expires_at', '>', now())
+                ->update(['used_at' => now()]);
+
+            $code = (string) random_int(100000, 999999);
+            PasswordResetOtp::query()->create([
+                'email' => $email,
+                'otp_hash' => Hash::make($code),
+                'expires_at' => now()->addMinutes(10),
+            ]);
+
+            Mail::to($email)->send(new PasswordResetOtpMail($code));
+            $debugCode = $code;
+        }
+
+        $response = ['detail' => 'If the email exists, an OTP has been sent.'];
+
+        if (app()->environment('local', 'testing') && $debugCode) {
+            $response['debug_code'] = $debugCode;
+        }
+
+        return response()->json($response);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'code' => ['required', 'string', 'size:6'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $email = strtolower($data['email']);
+        $user = User::query()->where('email', $email)->first();
+
+        if (! $user) {
+            return response()->json(['detail' => 'Invalid or expired OTP.'], 400);
+        }
+
+        $otp = PasswordResetOtp::query()
+            ->where('email', $email)
+            ->whereNull('used_at')
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
+
+        if (! $otp) {
+            return response()->json(['detail' => 'Invalid or expired OTP.'], 400);
+        }
+
+        if ($otp->attempts >= 5) {
+            return response()->json(['detail' => 'Too many attempts. Please request a new OTP.', 'code' => 'otp_locked'], 429);
+        }
+
+        if (! Hash::check($data['code'], $otp->otp_hash)) {
+            $otp->increment('attempts');
+            return response()->json(['detail' => 'Invalid or expired OTP.', 'code' => 'invalid_otp'], 400);
+        }
+
+        DB::transaction(function () use ($otp, $user, $data): void {
+            $otp->forceFill(['used_at' => now(), 'attempts' => 0])->save();
+            $user->forceFill(['password' => $data['password']])->save();
+        });
+
+        return response()->json(['detail' => 'Password has been reset successfully.']);
     }
 }
