@@ -7,6 +7,8 @@ use App\Support\CompatResponse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class CrudController extends Controller
 {
@@ -89,10 +91,77 @@ class CrudController extends Controller
             return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
         }
 
-        $model = $this->modelClass::query()->create($this->normalizeInput($request->all()));
+        $model = $this->modelClass::query()->create($this->prepareModelInput($request));
         $this->syncManyToMany($model, $request);
 
         return response()->json(CompatResponse::item($model->fresh()), 201);
+    }
+
+    protected function modelsWithIcon(): array
+    {
+        return [
+            \App\Models\HotelAmenity::class,
+            \App\Models\ServiceCategory::class,
+        ];
+    }
+
+    protected function iconStorageDir(): string
+    {
+        return match ($this->modelClass) {
+            \App\Models\HotelAmenity::class => 'amenities',
+            \App\Models\ServiceCategory::class => 'service-categories',
+            default => 'icons',
+        };
+    }
+
+    protected function prepareModelInput(Request $request, ?Model $existing = null): array
+    {
+        $data = $this->normalizeInput($request->except(['icon']));
+
+        foreach (['is_active', 'is_featured', 'advance_booking_required', 'smoking_allowed', 'extra_bed_allowed', 'breakfast_included'] as $field) {
+            if (! $request->has($field)) {
+                continue;
+            }
+            $value = $request->input($field);
+            if (is_string($value)) {
+                $data[$field] = in_array(strtolower($value), ['true', '1', 'yes'], true);
+            }
+        }
+
+        if (in_array($this->modelClass, $this->modelsWithIcon(), true)) {
+            $data = $this->applyIconUpload($request, $data, $existing);
+        }
+
+        return $data;
+    }
+
+    protected function applyIconUpload(Request $request, array $data, ?Model $existing = null): array
+    {
+        if (! $request->hasFile('icon')) {
+            return $data;
+        }
+
+        $file = $request->file('icon');
+        if (! $file->isValid()) {
+            return $data;
+        }
+
+        $this->deleteStoredIcon($existing?->icon);
+
+        $filename = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+        $storedPath = $file->storeAs($this->iconStorageDir(), $filename, 'public');
+        $data['icon'] = '/media/' . $storedPath;
+
+        return $data;
+    }
+
+    protected function deleteStoredIcon(?string $iconPath): void
+    {
+        if (! $iconPath || ! str_starts_with($iconPath, '/media/')) {
+            return;
+        }
+
+        Storage::disk('public')->delete(str_replace('/media/', '', $iconPath));
     }
 
     protected function eagerLoads(): array
@@ -128,7 +197,7 @@ class CrudController extends Controller
         }
 
         $model = $this->modelClass::query()->findOrFail($id);
-        $model->fill($this->normalizeInput($request->all()))->save();
+        $model->fill($this->prepareModelInput($request, $model))->save();
         $this->syncManyToMany($model, $request);
 
         return response()->json(CompatResponse::item($model->fresh()));
@@ -141,7 +210,13 @@ class CrudController extends Controller
             return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
         }
 
-        $this->modelClass::query()->findOrFail($id)->delete();
+        $model = $this->modelClass::query()->findOrFail($id);
+
+        if (in_array($this->modelClass, $this->modelsWithIcon(), true)) {
+            $this->deleteStoredIcon($model->icon);
+        }
+
+        $model->delete();
 
         return response()->json(null, 204);
     }
@@ -181,6 +256,7 @@ class CrudController extends Controller
             'service' => 'hotel_service_id',
             'category' => 'service_category_id',
             'status' => 'status',
+            'role' => 'role',
             'is_active' => 'is_active',
             'is_featured' => 'is_featured',
             'pricing_type' => 'pricing_type',
@@ -199,8 +275,12 @@ class CrudController extends Controller
         }
 
         if ($search = $request->query('search')) {
-            $query->where(function ($inner) use ($search) {
-                foreach (['name', 'full_name', 'email', 'customer_name', 'subject'] as $column) {
+            $searchColumns = $this->modelClass === \App\Models\User::class
+                ? ['full_name', 'email', 'phone']
+                : ['name', 'full_name', 'email', 'customer_name', 'subject'];
+
+            $query->where(function ($inner) use ($search, $searchColumns) {
+                foreach ($searchColumns as $column) {
                     $inner->orWhere($column, 'like', '%'.$search.'%');
                 }
             });

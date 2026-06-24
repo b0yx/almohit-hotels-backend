@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ImageUploadController extends Controller
 {
@@ -74,6 +75,8 @@ class ImageUploadController extends Controller
         $cfg = $this->config();
         $user = $request->user();
 
+        $this->assertImageUploadSucceeded($request);
+
         if ($user && ! $user->isAdmin()) {
             $parentId = (int) $request->input($cfg['request_key']);
             $hasAccess = match ($cfg['dir']) {
@@ -108,6 +111,7 @@ class ImageUploadController extends Controller
 
         $data[$cfg['foreign_key']] = $data[$cfg['request_key']];
         unset($data[$cfg['request_key']]);
+        $data = $this->normalizeTextFields($data, ['caption', 'alt_text']);
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
@@ -117,6 +121,10 @@ class ImageUploadController extends Controller
             $data['thumbnail'] = null;
         } elseif (!isset($data['image']) || $data['image'] === null) {
             unset($data['image']);
+        }
+
+        if (! empty($data['is_cover'])) {
+            $this->clearCoverFlags($cfg, (int) $data[$cfg['foreign_key']]);
         }
 
         $model = $cfg['model']::query()->create($data);
@@ -152,6 +160,7 @@ class ImageUploadController extends Controller
         }
 
         $data = $request->validate($rules);
+        $data = $this->normalizeTextFields($data, ['caption', 'alt_text']);
 
         if ($request->hasFile('image')) {
             if ($model->image && str_starts_with($model->image, '/media/')) {
@@ -166,6 +175,10 @@ class ImageUploadController extends Controller
             $storedPath = $file->storeAs($cfg['dir'], $filename, 'public');
             $data['image'] = '/media/' . $storedPath;
             $data['thumbnail'] = null;
+        }
+
+        if (! empty($data['is_cover'])) {
+            $this->clearCoverFlags($cfg, (int) $model->{$cfg['foreign_key']}, (int) $model->getKey());
         }
 
         $model->fill($data)->save();
@@ -202,6 +215,51 @@ class ImageUploadController extends Controller
             }
         }
         return $result;
+    }
+
+    private function assertImageUploadSucceeded(Request $request): void
+    {
+        if ($request->hasFile('image')) {
+            return;
+        }
+
+        if (! $request->has('image') && empty($_FILES['image'])) {
+            return;
+        }
+
+        $error = (int) ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE);
+        $maxSize = ini_get('upload_max_filesize') ?: '2M';
+
+        $message = match ($error) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => "Image file is too large. Maximum upload size is {$maxSize}.",
+            UPLOAD_ERR_PARTIAL => 'Image upload was incomplete. Please try again.',
+            UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE => 'Server cannot store uploaded files. Ensure storage/app/tmp is writable and PHP upload_tmp_dir is configured.',
+            UPLOAD_ERR_NO_FILE => 'No image file was received. Please choose a JPG, PNG, or WEBP file and try again.',
+            UPLOAD_ERR_EXTENSION => 'Image upload blocked by server configuration.',
+            default => 'Image upload failed. Please try again.',
+        };
+
+        throw ValidationException::withMessages(['image' => $message]);
+    }
+
+    private function normalizeTextFields(array $data, array $fields): array
+    {
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $data) && $data[$field] === null) {
+                $data[$field] = '';
+            }
+        }
+
+        return $data;
+    }
+
+    private function clearCoverFlags(array $cfg, int $parentId, ?int $exceptId = null): void
+    {
+        $query = $cfg['model']::query()->where($cfg['foreign_key'], $parentId);
+        if ($exceptId) {
+            $query->whereKeyNot($exceptId);
+        }
+        $query->update(['is_cover' => false]);
     }
 
     private function format($image, array $cfg): array

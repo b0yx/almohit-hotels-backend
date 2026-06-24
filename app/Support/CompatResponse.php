@@ -195,7 +195,13 @@ class CompatResponse
 
     public static function generic(Model $model): array
     {
-        return collect($model->toArray())->except(['hotel_id', 'service_category_id', 'hotel_service_id'])->all();
+        $data = collect($model->toArray())->except(['hotel_id', 'service_category_id', 'hotel_service_id'])->all();
+
+        if (! empty($data['icon'])) {
+            $data['icon_url'] = $data['icon'];
+        }
+
+        return $data;
     }
 
     public static function genericAlias(Model $model, array $aliases): array

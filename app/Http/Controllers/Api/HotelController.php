@@ -8,6 +8,7 @@ use App\Support\CompatResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class HotelController extends CrudController
 {
@@ -36,7 +37,17 @@ class HotelController extends CrudController
     public function update(Request $request, int $id): JsonResponse
     {
         $this->authorizeStaffHotelAccess($request, $id);
-        return parent::update($request, $id);
+
+        $validated = $this->validateHotelPayload($request, $id);
+        $hotel = Hotel::query()->findOrFail($id);
+        $data = $this->normalizeInput($validated);
+        $nested = $this->extractNestedHotelPayload($data);
+        $hotel->fill($data)->save();
+        $this->syncManyToMany($hotel, $request);
+        $this->syncNestedHotelRelations($hotel, $nested);
+        $this->syncCoverImage($hotel, $request->input('cover_image_id'));
+
+        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus'])));
     }
 
     public function destroy(int $id): JsonResponse
@@ -70,14 +81,18 @@ class HotelController extends CrudController
 
     public function store(Request $request): JsonResponse
     {
-        $data = $this->normalizeInput($request->all());
+        $validated = $this->validateHotelPayload($request);
+        $data = $this->normalizeInput($validated);
+        $nested = $this->extractNestedHotelPayload($data);
         $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? Str::random(8));
         $data['publishing_status'] = $data['publishing_status'] ?? 'draft';
 
         $hotel = Hotel::query()->create($data);
         $this->syncManyToMany($hotel, $request);
+        $this->syncNestedHotelRelations($hotel, $nested);
+        $this->syncCoverImage($hotel, $request->input('cover_image_id'));
 
-        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images'])), 201);
+        return response()->json(CompatResponse::hotel($hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus'])), 201);
     }
 
     public function publish(Request $request, int $id): JsonResponse
@@ -149,7 +164,169 @@ class HotelController extends CrudController
             'completion_percentage' => $setup?->completion_percentage ?? 0,
             'last_completed_step' => $setup?->last_completed_step ?? 1,
             'autosaved_at' => $setup?->autosaved_at?->toJSON(),
+            'status' => $hotel->publishing_status,
         ]);
+    }
+
+    private function validateHotelPayload(Request $request, ?int $hotelId = null): array
+    {
+        $isUpdate = $hotelId !== null;
+        $subdomainRule = Rule::unique('hotels', 'subdomain');
+        if ($hotelId) {
+            $subdomainRule = $subdomainRule->ignore($hotelId);
+        }
+
+        $requiredString = fn (int $max) => $isUpdate
+            ? ['sometimes', 'required', 'string', "max:{$max}"]
+            : ['required', 'string', "max:{$max}"];
+
+        $requiredStars = $isUpdate
+            ? ['sometimes', 'required', 'integer', 'min:1', 'max:5']
+            : ['required', 'integer', 'min:1', 'max:5'];
+
+        return $request->validate([
+            'name' => $requiredString(255),
+            'property_type' => $requiredString(20),
+            'country' => $requiredString(100),
+            'city' => $requiredString(100),
+            'address' => $requiredString(500),
+            'stars' => $requiredStars,
+            'description' => ['nullable', 'string'],
+            'is_active' => ['sometimes', 'boolean'],
+            'subdomain' => ['nullable', 'string', 'max:63', $subdomainRule],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric'],
+            'longitude' => ['nullable', 'numeric'],
+            'amenity_ids' => ['sometimes', 'array'],
+            'amenity_ids.*' => ['integer'],
+            'policy' => ['sometimes', 'array'],
+            'social_media' => ['sometimes', 'array'],
+            'contacts' => ['sometimes', 'array'],
+            'cover_image_id' => ['sometimes', 'nullable', 'integer'],
+        ]);
+    }
+
+    private function extractNestedHotelPayload(array &$data): array
+    {
+        $nested = [];
+        foreach (['policy', 'social_media', 'contacts'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $nested[$key] = is_array($data[$key]) ? $data[$key] : [];
+                unset($data[$key]);
+            }
+        }
+
+        return $nested;
+    }
+
+    private function syncNestedHotelRelations(Hotel $hotel, array $nested): void
+    {
+        if (array_key_exists('policy', $nested)) {
+            $hotel->policy()->updateOrCreate(
+                ['hotel_id' => $hotel->id],
+                $this->filterPolicyPayload($nested['policy'])
+            );
+        }
+
+        if (array_key_exists('social_media', $nested)) {
+            $hotel->socialMedia()->updateOrCreate(
+                ['hotel_id' => $hotel->id],
+                $this->filterSocialMediaPayload($nested['social_media'])
+            );
+        }
+
+        if (array_key_exists('contacts', $nested)) {
+            $hotel->contacts()->updateOrCreate(
+                ['hotel_id' => $hotel->id],
+                $this->filterContactsPayload($nested['contacts'])
+            );
+        }
+    }
+
+    private function filterPolicyPayload(array $policy): array
+    {
+        $allowed = [
+            'check_in_time',
+            'check_out_time',
+            'cancellation_policy',
+            'children_policy',
+            'pet_policy',
+            'smoking_policy',
+            'extra_bed_policy',
+            'important_notes',
+        ];
+
+        return collect($policy)->only($allowed)->map(function ($value, $key) {
+            if (in_array($key, ['check_in_time', 'check_out_time'], true)) {
+                return $value === '' || $value === null ? null : (string) $value;
+            }
+
+            return $this->blankString($value);
+        })->all();
+    }
+
+    private function filterSocialMediaPayload(array $socialMedia): array
+    {
+        $allowed = [
+            'facebook_url',
+            'instagram_url',
+            'tiktok_url',
+            'twitter_url',
+            'youtube_url',
+            'linkedin_url',
+            'booking_com_url',
+            'agoda_url',
+            'airbnb_url',
+            'expedia_url',
+            'whatsapp_number',
+            'telegram_username',
+        ];
+
+        return collect($socialMedia)
+            ->only($allowed)
+            ->map(fn ($value) => $this->blankString($value))
+            ->all();
+    }
+
+    private function filterContactsPayload(array $contacts): array
+    {
+        $allowed = [
+            'primary_contact_person',
+            'contact_position',
+            'emergency_contact_number',
+        ];
+
+        return collect($contacts)
+            ->only($allowed)
+            ->map(fn ($value) => $this->blankString($value))
+            ->all();
+    }
+
+    private function blankString(mixed $value): string
+    {
+        return $value === null ? '' : (string) $value;
+    }
+
+    private function syncCoverImage(Hotel $hotel, mixed $coverImageId): void
+    {
+        if ($coverImageId === null || $coverImageId === '') {
+            return;
+        }
+
+        $imageId = (int) $coverImageId;
+        if ($imageId <= 0) {
+            return;
+        }
+
+        $image = $hotel->images()->whereKey($imageId)->first();
+        if (! $image) {
+            return;
+        }
+
+        $hotel->images()->update(['is_cover' => false]);
+        $image->forceFill(['is_cover' => true])->save();
     }
 
     public function autosave(Request $request, int $id): JsonResponse
