@@ -173,6 +173,9 @@ class ApiTest extends TestCase
             'name' => 'Test Hotel',
             'slug' => 'test-hotel',
             'subdomain' => 'testhotel',
+            'property_type' => 'hotel',
+            'address' => '123 Test St',
+            'stars' => 4,
             'country' => 'Germany',
             'city' => 'Berlin',
         ], $headers);

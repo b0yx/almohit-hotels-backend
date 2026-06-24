@@ -9,6 +9,7 @@ use App\Models\HotelService;
 use App\Models\RoomType;
 use App\Models\RoomTypeImage;
 use App\Models\ServiceImage;
+use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -128,8 +129,10 @@ class ImageUploadController extends Controller
         }
 
         $model = $cfg['model']::query()->create($data);
+        $fresh = $model->fresh();
+        AuditService::log('created', $this->contentType($cfg), $fresh, null, null, $data['caption'] ?? '');
 
-        return response()->json($this->format($model->fresh(), $cfg), 201);
+        return response()->json($this->format($fresh, $cfg), 201);
     }
 
     public function show(string $id): JsonResponse
@@ -181,9 +184,12 @@ class ImageUploadController extends Controller
             $this->clearCoverFlags($cfg, (int) $model->{$cfg['foreign_key']}, (int) $model->getKey());
         }
 
+        $changes = AuditService::changes($model, $data);
         $model->fill($data)->save();
+        $fresh = $model->fresh();
+        AuditService::log('updated', $this->contentType($cfg), $fresh, $changes);
 
-        return response()->json($this->format($model->fresh(), $cfg));
+        return response()->json($this->format($fresh, $cfg));
     }
 
     public function destroy(string $id): JsonResponse
@@ -198,9 +204,20 @@ class ImageUploadController extends Controller
             Storage::disk('public')->delete(str_replace('/media/', '', $model->thumbnail));
         }
 
+        AuditService::log('deleted', $this->contentType($cfg), $model);
         $model->delete();
 
         return response()->json(null, 204);
+    }
+
+    private function contentType(array $cfg): string
+    {
+        return match ($cfg['dir']) {
+            'hotels' => 'hotel_image',
+            'room-types' => 'room_type_image',
+            'services' => 'service_image',
+            default => 'image',
+        };
     }
 
     private function normalizeBooleans(Request $request, array $fields): array

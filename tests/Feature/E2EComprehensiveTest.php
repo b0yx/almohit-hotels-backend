@@ -409,6 +409,7 @@ class E2EComprehensiveTest extends TestCase
     {
         $r = $this->postJson('/api/properties/', [
             'name' => 'New Hotel', 'slug' => 'new-hotel', 'subdomain' => 'new',
+            'property_type' => 'hotel', 'address' => '123 Test St', 'stars' => 4,
             'country' => 'France', 'city' => 'Paris',
         ], $this->auth($this->adminToken));
         $r->assertCreated()->assertJsonPath('name', 'New Hotel');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditService;
 use App\Support\CompatResponse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -94,7 +95,10 @@ class CrudController extends Controller
         $model = $this->modelClass::query()->create($this->prepareModelInput($request));
         $this->syncManyToMany($model, $request);
 
-        return response()->json(CompatResponse::item($model->fresh()), 201);
+        $fresh = $model->fresh();
+        AuditService::log('created', AuditService::contentTypeFor($this->modelClass), $fresh);
+
+        return response()->json(CompatResponse::item($fresh), 201);
     }
 
     protected function modelsWithIcon(): array
@@ -197,10 +201,15 @@ class CrudController extends Controller
         }
 
         $model = $this->modelClass::query()->findOrFail($id);
-        $model->fill($this->prepareModelInput($request, $model))->save();
+        $input = $this->prepareModelInput($request, $model);
+        $changes = AuditService::changes($model, $input);
+        $model->fill($input)->save();
         $this->syncManyToMany($model, $request);
 
-        return response()->json(CompatResponse::item($model->fresh()));
+        $fresh = $model->fresh();
+        AuditService::log('updated', AuditService::contentTypeFor($this->modelClass), $fresh, $changes);
+
+        return response()->json(CompatResponse::item($fresh));
     }
 
     public function destroy(int $id): JsonResponse
@@ -211,11 +220,13 @@ class CrudController extends Controller
         }
 
         $model = $this->modelClass::query()->findOrFail($id);
+        $contentType = AuditService::contentTypeFor($this->modelClass);
 
         if (in_array($this->modelClass, $this->modelsWithIcon(), true)) {
             $this->deleteStoredIcon($model->icon);
         }
 
+        AuditService::log('deleted', $contentType, $model);
         $model->delete();
 
         return response()->json(null, 204);

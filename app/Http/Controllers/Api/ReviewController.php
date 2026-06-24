@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Hotel;
 use App\Models\Review;
+use App\Services\AuditService;
 use App\Support\CompatResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,8 @@ class ReviewController extends CrudController
                 'user_id' => $request->user()?->id,
                 'is_active' => true,
             ]));
+
+            AuditService::log('created', 'review', $review);
 
             return response()->json(CompatResponse::review($review), 201);
         }
