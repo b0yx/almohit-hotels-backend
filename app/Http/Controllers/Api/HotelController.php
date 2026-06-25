@@ -42,6 +42,9 @@ class HotelController extends CrudController
         $validated = $this->validateHotelPayload($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
         $data = $this->normalizeInput($validated);
+        if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
+            $data['video_url'] = '';
+        }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
@@ -90,6 +93,9 @@ class HotelController extends CrudController
     {
         $validated = $this->validateHotelPayload($request);
         $data = $this->normalizeInput($validated);
+        if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
+            $data['video_url'] = '';
+        }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
@@ -229,6 +235,7 @@ class HotelController extends CrudController
             'social_media' => ['sometimes', 'array'],
             'contacts' => ['sometimes', 'array'],
             'cover_image_id' => ['sometimes', 'nullable', 'integer'],
+            'video_url' => ['nullable', 'string', 'max:500'],
         ]);
     }
 
