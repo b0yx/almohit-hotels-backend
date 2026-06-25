@@ -42,12 +42,14 @@ class HotelController extends CrudController
         $validated = $this->validateHotelPayload($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
         $data = $this->normalizeInput($validated);
+        $coverImageId = $data['cover_image_id'] ?? null;
+        unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
         $changes = AuditService::changes($hotel, $data);
         $hotel->fill($data)->save();
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
-        $this->syncCoverImage($hotel, $request->input('cover_image_id'));
+        $this->syncCoverImage($hotel, $coverImageId);
 
         $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus']);
         AuditService::log('updated', 'hotel', $fresh, $changes);
@@ -88,6 +90,8 @@ class HotelController extends CrudController
     {
         $validated = $this->validateHotelPayload($request);
         $data = $this->normalizeInput($validated);
+        $coverImageId = $data['cover_image_id'] ?? null;
+        unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
         $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? Str::random(8));
         $data['publishing_status'] = $data['publishing_status'] ?? 'draft';
@@ -95,7 +99,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->create($data);
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
-        $this->syncCoverImage($hotel, $request->input('cover_image_id'));
+        $this->syncCoverImage($hotel, $coverImageId);
 
         $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus']);
         AuditService::log('created', 'hotel', $fresh);
@@ -346,7 +350,7 @@ class HotelController extends CrudController
         }
 
         $hotel->images()->update(['is_cover' => false]);
-        $image->forceFill(['is_cover' => true])->save();
+        $image->refresh()->forceFill(['is_cover' => true])->save();
     }
 
     public function autosave(Request $request, int $id): JsonResponse
