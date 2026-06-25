@@ -14,6 +14,22 @@ use Illuminate\Database\Eloquent\Model;
 
 class CompatResponse
 {
+    private static function sortGalleryImages($images)
+    {
+        return $images->sortBy(fn ($img) => [
+            ($img->is_cover ?? false) ? 0 : 1,
+            $img->display_order ?? 0,
+            $img->id ?? 0,
+        ])->values();
+    }
+
+    private static function pickCoverImage($images)
+    {
+        return self::sortGalleryImages(
+            $images->where('is_active', true)
+        )->first();
+    }
+
     public static function item(Model $model): array
     {
         return match (true) {
@@ -56,7 +72,7 @@ class CompatResponse
     public static function hotel(Hotel $hotel): array
     {
         $cover = $hotel->relationLoaded('images')
-            ? $hotel->images->where('is_active', true)->sortByDesc('is_cover')->sortBy('display_order')->first()
+            ? self::pickCoverImage($hotel->images)
             : null;
 
         $avgRating = null;
@@ -72,7 +88,7 @@ class CompatResponse
         $contacts = $hotel->relationLoaded('contacts') ? $hotel->contacts : null;
         $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
         $amenities = $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [];
-        $images = $hotel->relationLoaded('images') ? $hotel->images->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
+        $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
         $readinessErrors = self::computeReadinessErrors($hotel);
 
         return [
@@ -148,13 +164,13 @@ class CompatResponse
     {
         $coverImageUrl = null;
         if ($room->relationLoaded('images')) {
-            $cover = $room->images->where('is_active', true)->sortByDesc('is_cover')->sortBy('display_order')->first();
+            $cover = self::pickCoverImage($room->images);
             $coverImageUrl = $cover?->image;
         }
 
         return array_merge(self::genericAlias($room, ['property' => 'hotel_id']), [
             'cover_image_url' => $coverImageUrl,
-            'images' => $room->relationLoaded('images') ? $room->images->map(fn ($i) => self::generic($i))->values() : [],
+            'images' => $room->relationLoaded('images') ? self::sortGalleryImages($room->images)->map(fn ($i) => self::generic($i))->values() : [],
             'prices' => $room->relationLoaded('prices') ? $room->prices->map(fn ($p) => self::generic($p))->values() : [],
             'amenity_details' => [],
         ]);
