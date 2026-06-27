@@ -94,6 +94,7 @@ class CompatResponse
         return [
             'id' => $hotel->id,
             'name' => $hotel->name,
+            'name_ar' => $hotel->name_ar,
             'slug' => $hotel->slug,
             'subdomain' => $hotel->subdomain,
             'property_type' => $hotel->property_type,
@@ -105,7 +106,9 @@ class CompatResponse
             'website' => $hotel->website,
             'stars' => $hotel->stars,
             'description' => $hotel->description ?? '',
+            'description_ar' => $hotel->description_ar,
             'short_description' => $hotel->short_description,
+            'short_description_ar' => $hotel->short_description_ar,
             'timezone' => $hotel->timezone,
             'languages_spoken' => $hotel->languages_spoken ?: [],
             'parking_available' => (bool) $hotel->parking_available,
