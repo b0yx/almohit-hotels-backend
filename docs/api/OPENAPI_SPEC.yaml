@@ -102,11 +102,14 @@ components:
         redirect_url: { type: string, format: uri }
         user: { $ref: '#/components/schemas/User' }
 
+    # Arabic content fields are plain content fields. SEO metadata, localized slugs, canonical URLs, and locale fallback are future phases.
+
     Hotel:
       type: object
       properties:
         id: { type: integer }
         name: { type: string }
+        name_ar: { type: string, nullable: true }
         slug: { type: string }
         subdomain: { type: string }
         property_type: { type: string, default: hotel }
@@ -118,7 +121,9 @@ components:
         website: { type: string }
         stars: { type: integer, minimum: 1, maximum: 5 }
         description: { type: string }
+        description_ar: { type: string, nullable: true }
         short_description: { type: string }
+        short_description_ar: { type: string, nullable: true }
         timezone: { type: string, default: UTC }
         languages_spoken: { type: array, items: { type: string } }
         parking_available: { type: boolean }
@@ -133,7 +138,7 @@ components:
         total_reviews: { type: integer }
         amenities: { type: array, items: { type: object } }
         images: { type: array, items: { type: object } }
-        policy: { type: object, nullable: true }
+        policy: { $ref: '#/components/schemas/HotelPolicy', nullable: true }
         social_media: { type: object, nullable: true }
         contacts: { type: object, nullable: true }
         setup_status: { type: object, nullable: true }
@@ -148,6 +153,22 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    HotelPolicy:
+      type: object
+      properties:
+        cancellation_policy: { type: string, nullable: true }
+        cancellation_policy_ar: { type: string, nullable: true }
+        children_policy: { type: string, nullable: true }
+        children_policy_ar: { type: string, nullable: true }
+        pet_policy: { type: string, nullable: true }
+        pet_policy_ar: { type: string, nullable: true }
+        smoking_policy: { type: string, nullable: true }
+        smoking_policy_ar: { type: string, nullable: true }
+        extra_bed_policy: { type: string, nullable: true }
+        extra_bed_policy_ar: { type: string, nullable: true }
+        check_in_time: { type: string, nullable: true }
+        check_out_time: { type: string, nullable: true }
+
     RoomType:
       type: object
       properties:
@@ -155,6 +176,8 @@ components:
         property: { type: integer, description: Hotel ID }
         name: { type: string }
         description: { type: string }
+        name_ar: { type: string, nullable: true }
+        description_ar: { type: string, nullable: true }
         room_size: { type: number, nullable: true }
         bed_type: { type: string }
         smoking_allowed: { type: boolean }
@@ -256,6 +279,18 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    HotelAmenity:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        name_ar: { type: string, nullable: true }
+        icon: { type: string, nullable: true }
+        icon_url: { type: string, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     HotelService:
       type: object
       properties:
@@ -268,6 +303,9 @@ components:
         slug: { type: string }
         short_description: { type: string }
         description: { type: string }
+        name_ar: { type: string, nullable: true }
+        short_description_ar: { type: string, nullable: true }
+        description_ar: { type: string, nullable: true }
         price: { type: string, description: Decimal as string }
         currency: { type: string }
         pricing_type: { type: string, enum: [on_request, fixed, per_person, per_hour] }
@@ -1362,7 +1400,10 @@ paths:
               required: [property, image]
               properties:
                 property: { type: integer, description: Hotel ID }
-                image: { type: string, format: binary, description: Image file (JPEG/PNG/GIF/WebP, max 10MB) }
+                image:
+                  type: string
+                  format: binary
+                  description: "Image file (JPEG/PNG/GIF/WebP, max 10MB)"
                 caption: { type: string }
                 alt_text: { type: string }
                 display_order: { type: integer }

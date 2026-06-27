@@ -80,6 +80,7 @@ class OpenApiSpec
         properties: [
             new OA\Property(property: "id", type: "integer", nullable: false),
             new OA\Property(property: "name", type: "string", nullable: false),
+            new OA\Property(property: "name_ar", type: "string", nullable: true),
             new OA\Property(property: "slug", type: "string", nullable: false),
             new OA\Property(property: "subdomain", type: "string", nullable: false),
             new OA\Property(property: "property_type", type: "string", nullable: false, default: "hotel"),
@@ -91,7 +92,9 @@ class OpenApiSpec
             new OA\Property(property: "website", type: "string", nullable: false),
             new OA\Property(property: "stars", type: "integer", nullable: false),
             new OA\Property(property: "description", type: "string", nullable: false),
+            new OA\Property(property: "description_ar", type: "string", nullable: true),
             new OA\Property(property: "short_description", type: "string", nullable: false),
+            new OA\Property(property: "short_description_ar", type: "string", nullable: true),
             new OA\Property(property: "timezone", type: "string", nullable: false, default: "UTC"),
             new OA\Property(property: "languages_spoken", type: "array", nullable: false, items: new OA\Items(type: "string")),
             new OA\Property(property: "parking_available", type: "boolean", nullable: false),
@@ -106,7 +109,7 @@ class OpenApiSpec
             new OA\Property(property: "total_reviews", type: "integer", nullable: false),
             new OA\Property(property: "amenities", type: "array", nullable: false, items: new OA\Items(type: "string")),
             new OA\Property(property: "images", type: "array", nullable: false, items: new OA\Items(type: "string")),
-            new OA\Property(property: "policy", type: "object", nullable: true),
+            new OA\Property(property: "policy", ref: "#/components/schemas/HotelPolicy", nullable: true),
             new OA\Property(property: "social_media", type: "object", nullable: true),
             new OA\Property(property: "contacts", type: "object", nullable: true),
             new OA\Property(property: "setup_status", type: "object", nullable: true),
@@ -124,6 +127,29 @@ class OpenApiSpec
     )]
     private $Hotel;
 
+    // Arabic content fields are plain content fields. SEO metadata, localized slugs, canonical URLs, and locale fallback are future phases.
+
+    // ─── Schema: HotelPolicy ────────────────────────────────
+    #[OA\Schema(
+        schema: "HotelPolicy",
+        type: "object",
+        properties: [
+            new OA\Property(property: "cancellation_policy", type: "string", nullable: true),
+            new OA\Property(property: "cancellation_policy_ar", type: "string", nullable: true),
+            new OA\Property(property: "children_policy", type: "string", nullable: true),
+            new OA\Property(property: "children_policy_ar", type: "string", nullable: true),
+            new OA\Property(property: "pet_policy", type: "string", nullable: true),
+            new OA\Property(property: "pet_policy_ar", type: "string", nullable: true),
+            new OA\Property(property: "smoking_policy", type: "string", nullable: true),
+            new OA\Property(property: "smoking_policy_ar", type: "string", nullable: true),
+            new OA\Property(property: "extra_bed_policy", type: "string", nullable: true),
+            new OA\Property(property: "extra_bed_policy_ar", type: "string", nullable: true),
+            new OA\Property(property: "check_in_time", type: "string", nullable: true),
+            new OA\Property(property: "check_out_time", type: "string", nullable: true),
+        ]
+    )]
+    private $HotelPolicy;
+
     // ─── Schema: RoomType ────────────────────────────────
     #[OA\Schema(
         schema: "RoomType",
@@ -132,7 +158,9 @@ class OpenApiSpec
             new OA\Property(property: "id", type: "integer", nullable: false),
             new OA\Property(property: "property", type: "integer", nullable: false, description: "Hotel ID"),
             new OA\Property(property: "name", type: "string", nullable: false),
+            new OA\Property(property: "name_ar", type: "string", nullable: true),
             new OA\Property(property: "description", type: "string", nullable: false),
+            new OA\Property(property: "description_ar", type: "string", nullable: true),
             new OA\Property(property: "room_size", type: "number", nullable: true),
             new OA\Property(property: "bed_type", type: "string", nullable: false),
             new OA\Property(property: "smoking_allowed", type: "boolean", nullable: false),
@@ -243,6 +271,23 @@ class OpenApiSpec
     )]
     private $ServiceCategory;
 
+    // ─── Schema: HotelAmenity ────────────────────────────────
+    #[OA\Schema(
+        schema: "HotelAmenity",
+        type: "object",
+        properties: [
+            new OA\Property(property: "id", type: "integer", nullable: false),
+            new OA\Property(property: "name", type: "string", nullable: false),
+            new OA\Property(property: "name_ar", type: "string", nullable: true),
+            new OA\Property(property: "icon", type: "string", nullable: true),
+            new OA\Property(property: "icon_url", type: "string", nullable: true),
+            new OA\Property(property: "is_active", type: "boolean", nullable: false),
+            new OA\Property(property: "created_at", type: "string", nullable: false),
+            new OA\Property(property: "updated_at", type: "string", nullable: false),
+        ]
+    )]
+    private $HotelAmenity;
+
     // ─── Schema: HotelService ────────────────────────────────
     #[OA\Schema(
         schema: "HotelService",
@@ -254,9 +299,12 @@ class OpenApiSpec
             new OA\Property(property: "category", type: "integer", nullable: true, description: "ServiceCategory ID"),
             new OA\Property(property: "category_name", type: "string", nullable: false),
             new OA\Property(property: "name", type: "string", nullable: false),
+            new OA\Property(property: "name_ar", type: "string", nullable: true),
             new OA\Property(property: "slug", type: "string", nullable: false),
             new OA\Property(property: "short_description", type: "string", nullable: false),
+            new OA\Property(property: "short_description_ar", type: "string", nullable: true),
             new OA\Property(property: "description", type: "string", nullable: false),
+            new OA\Property(property: "description_ar", type: "string", nullable: true),
             new OA\Property(property: "price", type: "string", nullable: false, description: "Decimal as string"),
             new OA\Property(property: "currency", type: "string", nullable: false),
             new OA\Property(property: "pricing_type", type: "string", nullable: false),
