@@ -1642,7 +1642,7 @@
             "description": "Create a hotel (admin/staff)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"property_type\": \"\",\n  \"country\": \"\",\n  \"city\": \"\"\n}",
+              "raw": "{\n  \"name\": \"\",\n  \"property_type\": \"\",\n  \"country\": \"\",\n  \"city\": \"\",\n  \"meta_title\": null,\n  \"meta_description\": null,\n  \"meta_title_ar\": null,\n  \"meta_description_ar\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"

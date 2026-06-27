@@ -216,12 +216,19 @@ class HotelController extends CrudController
 
         return $request->validate([
             'name' => $requiredString(255),
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'property_type' => $requiredString(20),
             'country' => $requiredString(100),
             'city' => $requiredString(100),
             'address' => $requiredString(500),
             'stars' => $requiredStars,
             'description' => ['nullable', 'string'],
+            'description_ar' => ['nullable', 'string'],
+            'short_description_ar' => ['nullable', 'string', 'max:300'],
+            'meta_title' => ['nullable', 'string', 'max:60'],
+            'meta_description' => ['nullable', 'string', 'max:160'],
+            'meta_title_ar' => ['nullable', 'string', 'max:60'],
+            'meta_description_ar' => ['nullable', 'string', 'max:160'],
             'is_active' => ['sometimes', 'boolean'],
             'subdomain' => ['nullable', 'string', 'max:63', $subdomainRule],
             'phone' => ['nullable', 'string', 'max:50'],
@@ -286,11 +293,20 @@ class HotelController extends CrudController
             'pet_policy',
             'smoking_policy',
             'extra_bed_policy',
+            'cancellation_policy_ar',
+            'children_policy_ar',
+            'pet_policy_ar',
+            'smoking_policy_ar',
+            'extra_bed_policy_ar',
             'important_notes',
         ];
 
         return collect($policy)->only($allowed)->map(function ($value, $key) {
             if (in_array($key, ['check_in_time', 'check_out_time'], true)) {
+                return $value === '' || $value === null ? null : (string) $value;
+            }
+
+            if (str_ends_with((string) $key, '_ar')) {
                 return $value === '' || $value === null ? null : (string) $value;
             }
 
