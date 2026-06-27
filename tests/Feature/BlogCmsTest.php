@@ -78,6 +78,8 @@ class BlogCmsTest extends TestCase
             'featured_image_alt' => 'Dubai skyline near hotels',
             'meta_title' => 'Best Hotels in Dubai | Almohit Hotels',
             'meta_description' => 'Compare Dubai hotel areas and find the right stay.',
+            'meta_title_ar' => null,
+            'meta_description_ar' => null,
             'status' => BlogPost::STATUS_PUBLISHED,
             'published_at' => now()->subDay()->toIso8601String(),
             'locale' => 'en',
@@ -176,6 +178,52 @@ class BlogCmsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('title', 'Updated Blog Title')
             ->assertJsonPath('slug', 'best-hotels-in-dubai');
+    }
+
+    public function test_blog_post_seo_fields_are_saved_returned_and_nullable(): void
+    {
+        $response = $this->postJson('/api/admin/blog/posts/', $this->payload([
+            'meta_title' => 'Dubai hotels guide',
+            'meta_description' => 'Compare hotel locations, amenities, and family-friendly stays in Dubai.',
+            'meta_title_ar' => 'دليل فنادق دبي',
+            'meta_description_ar' => 'قارن مواقع الفنادق والمرافق والإقامات المناسبة للعائلات في دبي.',
+        ]), $this->authHeader($this->adminToken));
+
+        $response->assertCreated()
+            ->assertJsonPath('meta_title', 'Dubai hotels guide')
+            ->assertJsonPath('meta_description', 'Compare hotel locations, amenities, and family-friendly stays in Dubai.')
+            ->assertJsonPath('meta_title_ar', 'دليل فنادق دبي')
+            ->assertJsonPath('meta_description_ar', 'قارن مواقع الفنادق والمرافق والإقامات المناسبة للعائلات في دبي.');
+
+        $postId = $response->json('id');
+        $this->assertDatabaseHas('blog_posts', [
+            'id' => $postId,
+            'meta_title_ar' => 'دليل فنادق دبي',
+        ]);
+
+        $this->patchJson('/api/admin/blog/posts/'.$postId.'/', [
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_title_ar' => null,
+            'meta_description_ar' => null,
+        ], $this->authHeader($this->adminToken))
+            ->assertOk()
+            ->assertJsonPath('meta_title', null)
+            ->assertJsonPath('meta_description', null)
+            ->assertJsonPath('meta_title_ar', null)
+            ->assertJsonPath('meta_description_ar', null);
+    }
+
+    public function test_blog_post_english_only_payload_still_works_without_arabic_seo(): void
+    {
+        $payload = $this->payload();
+        unset($payload['meta_title_ar'], $payload['meta_description_ar']);
+
+        $this->postJson('/api/admin/blog/posts/', $payload, $this->authHeader($this->adminToken))
+            ->assertCreated()
+            ->assertJsonPath('meta_title', 'Best Hotels in Dubai | Almohit Hotels')
+            ->assertJsonPath('meta_title_ar', null)
+            ->assertJsonPath('meta_description_ar', null);
     }
 
     public function test_public_blog_page_size_is_capped(): void

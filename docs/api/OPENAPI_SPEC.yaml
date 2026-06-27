@@ -124,6 +124,10 @@ components:
         description_ar: { type: string, nullable: true }
         short_description: { type: string }
         short_description_ar: { type: string, nullable: true }
+        meta_title: { type: string, maxLength: 60, nullable: true }
+        meta_description: { type: string, maxLength: 160, nullable: true }
+        meta_title_ar: { type: string, maxLength: 60, nullable: true }
+        meta_description_ar: { type: string, maxLength: 160, nullable: true }
         timezone: { type: string, default: UTC }
         languages_spoken: { type: array, items: { type: string } }
         parking_available: { type: boolean }
@@ -152,6 +156,72 @@ components:
         longitude: { type: number, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    BlogPost:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        slug: { type: string }
+        excerpt: { type: string }
+        content: { type: string }
+        featured_image: { type: string }
+        featured_image_alt: { type: string }
+        meta_title: { type: string, maxLength: 60, nullable: true }
+        meta_description: { type: string, maxLength: 160, nullable: true }
+        meta_title_ar: { type: string, maxLength: 60, nullable: true }
+        meta_description_ar: { type: string, maxLength: 160, nullable: true }
+        status: { type: string, enum: [draft, scheduled, published, archived] }
+        published_at: { type: string, format: date-time, nullable: true }
+        locale: { type: string, enum: [ar, en] }
+        author: { type: object, nullable: true }
+        category: { type: object, nullable: true }
+        hotel: { $ref: '#/components/schemas/Hotel', nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    BlogPostRequest:
+      type: object
+      required: [title, slug, excerpt, content, featured_image, featured_image_alt, status, published_at, locale, author_id, category_id]
+      properties:
+        title: { type: string, maxLength: 255 }
+        slug: { type: string, maxLength: 255 }
+        excerpt: { type: string }
+        content: { type: string }
+        featured_image: { type: string, maxLength: 500 }
+        featured_image_alt: { type: string, maxLength: 255 }
+        meta_title: { type: string, maxLength: 60, nullable: true }
+        meta_description: { type: string, maxLength: 160, nullable: true }
+        meta_title_ar: { type: string, maxLength: 60, nullable: true }
+        meta_description_ar: { type: string, maxLength: 160, nullable: true }
+        status: { type: string, enum: [draft, scheduled, published, archived] }
+        published_at: { type: string, format: date-time }
+        locale: { type: string, enum: [ar, en] }
+        author_id: { type: integer }
+        category_id: { type: integer }
+        hotel_id: { type: integer, nullable: true }
+
+    BlogCategory:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        locale: { type: string, enum: [ar, en] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    BlogCategoryRequest:
+      type: object
+      required: [name, slug, locale]
+      properties:
+        name: { type: string, maxLength: 150 }
+        slug: { type: string, maxLength: 180 }
+        description: { type: string, nullable: true }
+        locale: { type: string, enum: [ar, en] }
+        is_active: { type: boolean, nullable: true }
 
     HotelPolicy:
       type: object
@@ -406,6 +476,281 @@ paths:
                   subdomain: { type: string, nullable: true }
                   status: { type: string, enum: [bypass, available, invalid, unavailable] }
                   property: { $ref: '#/components/schemas/Hotel' }
+
+  # ─── Blog CMS ──────────────────────────────────────────────────────────
+  /api/blog/posts/:
+    get:
+      tags: [Blog CMS]
+      summary: List published blog posts
+      description: Returns published blog posts whose published_at date has passed and whose category is active.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        "200":
+          description: Paginated published blog posts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PaginatedResponse' }
+                  - type: object
+                    properties:
+                      results: { type: array, items: { $ref: '#/components/schemas/BlogPost' } }
+
+  /api/blog/posts/{slug}/:
+    get:
+      tags: [Blog CMS]
+      summary: Get published blog post by slug
+      description: Returns one publicly visible blog post by slug, including linked hotel context when available.
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Blog post detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlogPost' }
+        "404":
+          description: Blog post not found or not publicly visible
+
+  /api/admin/blog/posts/:
+    get:
+      tags: [Blog CMS]
+      summary: List blog posts (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, scheduled, published, archived] }
+        - name: locale
+          in: query
+          schema: { type: string, enum: [ar, en] }
+        - name: category_id
+          in: query
+          schema: { type: integer }
+        - name: hotel_id
+          in: query
+          schema: { type: integer }
+        - name: author_id
+          in: query
+          schema: { type: integer }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        "200":
+          description: Paginated blog posts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PaginatedResponse' }
+                  - type: object
+                    properties:
+                      results: { type: array, items: { $ref: '#/components/schemas/BlogPost' } }
+    post:
+      tags: [Blog CMS]
+      summary: Create a blog post (admin/staff)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlogPostRequest' }
+      responses:
+        "201":
+          description: Blog post created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlogPost' }
+        "422":
+          description: Validation error
+
+  /api/admin/blog/posts/{id}/:
+    get:
+      tags: [Blog CMS]
+      summary: Get blog post detail (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Blog post detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlogPost' }
+    patch:
+      tags: [Blog CMS]
+      summary: Update a blog post (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlogPostRequest' }
+      responses:
+        "200":
+          description: Blog post updated
+    put:
+      tags: [Blog CMS]
+      summary: Replace a blog post (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlogPostRequest' }
+      responses:
+        "200":
+          description: Blog post updated
+    delete:
+      tags: [Blog CMS]
+      summary: Delete a blog post (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Blog post deleted
+
+  /api/admin/blog/categories/:
+    get:
+      tags: [Blog CMS]
+      summary: List blog categories (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: locale
+          in: query
+          schema: { type: string, enum: [ar, en] }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        "200":
+          description: Paginated blog categories
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PaginatedResponse' }
+                  - type: object
+                    properties:
+                      results: { type: array, items: { $ref: '#/components/schemas/BlogCategory' } }
+    post:
+      tags: [Blog CMS]
+      summary: Create a blog category (admin/staff)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlogCategoryRequest' }
+      responses:
+        "201":
+          description: Blog category created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlogCategory' }
+        "422":
+          description: Validation error
+
+  /api/admin/blog/categories/{id}/:
+    get:
+      tags: [Blog CMS]
+      summary: Get blog category detail (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Blog category detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlogCategory' }
+    patch:
+      tags: [Blog CMS]
+      summary: Update a blog category (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlogCategoryRequest' }
+      responses:
+        "200":
+          description: Blog category updated
+    put:
+      tags: [Blog CMS]
+      summary: Replace a blog category (admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlogCategoryRequest' }
+      responses:
+        "200":
+          description: Blog category updated
+    delete:
+      tags: [Blog CMS]
+      summary: Delete a blog category (admin/staff)
+      description: Categories that still have blog posts cannot be deleted.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Blog category deleted
+        "422":
+          description: Category has blog posts
 
   # ─── Auth ──────────────────────────────────────────────────────────────
   /api/auth/signup/:
@@ -845,6 +1190,10 @@ paths:
                 property_type: { type: string }
                 country: { type: string }
                 city: { type: string }
+                meta_title: { type: string, maxLength: 60, nullable: true }
+                meta_description: { type: string, maxLength: 160, nullable: true }
+                meta_title_ar: { type: string, maxLength: 60, nullable: true }
+                meta_description_ar: { type: string, maxLength: 160, nullable: true }
       responses:
         "201":
           description: Hotel created
