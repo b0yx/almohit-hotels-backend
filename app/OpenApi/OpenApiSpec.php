@@ -95,6 +95,10 @@ class OpenApiSpec
             new OA\Property(property: "description_ar", type: "string", nullable: true),
             new OA\Property(property: "short_description", type: "string", nullable: false),
             new OA\Property(property: "short_description_ar", type: "string", nullable: true),
+            new OA\Property(property: "meta_title", type: "string", maxLength: 60, nullable: true),
+            new OA\Property(property: "meta_description", type: "string", maxLength: 160, nullable: true),
+            new OA\Property(property: "meta_title_ar", type: "string", maxLength: 60, nullable: true),
+            new OA\Property(property: "meta_description_ar", type: "string", maxLength: 160, nullable: true),
             new OA\Property(property: "timezone", type: "string", nullable: false, default: "UTC"),
             new OA\Property(property: "languages_spoken", type: "array", nullable: false, items: new OA\Items(type: "string")),
             new OA\Property(property: "parking_available", type: "boolean", nullable: false),
@@ -127,7 +131,35 @@ class OpenApiSpec
     )]
     private $Hotel;
 
-    // Arabic content fields are plain content fields. SEO metadata, localized slugs, canonical URLs, and locale fallback are future phases.
+    // Arabic content fields are plain content fields. Localized slugs, canonical URLs, and locale fallback are future phases.
+
+    // ─── Schema: BlogPost ────────────────────────────────
+    #[OA\Schema(
+        schema: "BlogPost",
+        type: "object",
+        properties: [
+            new OA\Property(property: "id", type: "integer", nullable: false),
+            new OA\Property(property: "title", type: "string", nullable: false),
+            new OA\Property(property: "slug", type: "string", nullable: false),
+            new OA\Property(property: "excerpt", type: "string", nullable: false),
+            new OA\Property(property: "content", type: "string", nullable: false),
+            new OA\Property(property: "featured_image", type: "string", nullable: false),
+            new OA\Property(property: "featured_image_alt", type: "string", nullable: false),
+            new OA\Property(property: "meta_title", type: "string", maxLength: 60, nullable: true),
+            new OA\Property(property: "meta_description", type: "string", maxLength: 160, nullable: true),
+            new OA\Property(property: "meta_title_ar", type: "string", maxLength: 60, nullable: true),
+            new OA\Property(property: "meta_description_ar", type: "string", maxLength: 160, nullable: true),
+            new OA\Property(property: "status", type: "string", nullable: false),
+            new OA\Property(property: "published_at", type: "string", nullable: true),
+            new OA\Property(property: "locale", type: "string", nullable: false),
+            new OA\Property(property: "author", type: "object", nullable: true),
+            new OA\Property(property: "category", type: "object", nullable: true),
+            new OA\Property(property: "hotel", ref: "#/components/schemas/Hotel", nullable: true),
+            new OA\Property(property: "created_at", type: "string", nullable: false),
+            new OA\Property(property: "updated_at", type: "string", nullable: false),
+        ]
+    )]
+    private $BlogPost;
 
     // ─── Schema: HotelPolicy ────────────────────────────────
     #[OA\Schema(

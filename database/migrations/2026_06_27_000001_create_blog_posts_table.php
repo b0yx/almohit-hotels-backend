@@ -16,8 +16,10 @@ return new class extends Migration
             $table->longText('content');
             $table->string('featured_image');
             $table->string('featured_image_alt');
-            $table->string('meta_title');
-            $table->string('meta_description', 320);
+            $table->string('meta_title', 60)->nullable();
+            $table->string('meta_description', 160)->nullable();
+            $table->string('meta_title_ar', 60)->nullable();
+            $table->string('meta_description_ar', 160)->nullable();
             $table->string('status', 20)->default('draft')->index();
             $table->timestamp('published_at')->nullable()->index();
             $table->string('locale', 5)->default('en')->index();

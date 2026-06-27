@@ -20,6 +20,8 @@ class BlogPostResource extends JsonResource
             'featured_image_alt' => $this->featured_image_alt,
             'meta_title' => $this->meta_title,
             'meta_description' => $this->meta_description,
+            'meta_title_ar' => $this->meta_title_ar,
+            'meta_description_ar' => $this->meta_description_ar,
             'status' => $this->status,
             'published_at' => optional($this->published_at)->toJSON(),
             'locale' => $this->locale,
