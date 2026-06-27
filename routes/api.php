@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BlogCategoryController;
+use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CrudController;
 use App\Http\Controllers\Api\HotelController;
@@ -62,6 +64,8 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         ], $allOk ? 200 : 503);
     });
     Route::get('/public/hotel-context/', [HotelController::class, 'publicContext']);
+    Route::get('/blog/posts/', [BlogPostController::class, 'publicIndex']);
+    Route::get('/blog/posts/{slug}/', [BlogPostController::class, 'publicShow']);
 
     Route::prefix('auth')->group(function () {
         Route::post('/signup/', [AuthController::class, 'signup'])->middleware('throttle:5,30');
@@ -108,6 +112,11 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::post('/bookings/{id}/cancel/', [BookingController::class, 'cancel']);
 
     Route::apiResource('reviews', ReviewController::class)->parameters(['reviews' => 'id'])->only(['index', 'show', 'update', 'destroy']);
+
+    Route::prefix('admin/blog')->group(function () {
+        Route::apiResource('categories', BlogCategoryController::class)->parameters(['categories' => 'category']);
+        Route::apiResource('posts', BlogPostController::class)->parameters(['posts' => 'post']);
+    });
 
     Route::apiResource('property-amenities', CrudController::class)->parameters(['property-amenities' => 'id']);
     imageRoutes('property-images');
