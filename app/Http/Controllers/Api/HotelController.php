@@ -493,10 +493,22 @@ class HotelController extends CrudController
     public function roomsSearch(Request $request, int $id): JsonResponse
     {
         $this->authorizeStaffHotelAccess($request, $id);
-        $rooms = RoomType::where('hotel_id', $id)->where('is_active', true)->get()->map(fn ($room) => [
+        $rooms = RoomType::where('hotel_id', $id)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn (RoomType $room) => $this->mapGuestRoomSearchRow($room));
+
+        return response()->json(['property_id' => $id, 'rooms' => $rooms]);
+    }
+
+    private function mapGuestRoomSearchRow(RoomType $room): array
+    {
+        $data = [
             'room_type_id' => $room->id,
             'name' => $room->name,
+            'name_ar' => $room->name_ar,
             'description' => $room->description,
+            'description_ar' => $room->description_ar,
             'max_adults' => $room->max_adults,
             'max_children' => $room->max_children,
             'total_units' => $room->total_units,
@@ -506,25 +518,32 @@ class HotelController extends CrudController
             'extra_bed_price' => (string) $room->extra_bed_price,
             'breakfast_included' => (bool) $room->breakfast_included,
             'cover_image_url' => null,
-        ]);
+        ];
 
-        return response()->json(['property_id' => $id, 'rooms' => $rooms]);
+        $data = LocalizedMapper::mapOutput($room, $data);
+        unset($data['name_ar'], $data['description_ar']);
+
+        return $data;
     }
 
     public function availability(Request $request, int $id): JsonResponse
     {
         $this->authorizeStaffHotelAccess($request, $id);
         $hotel = Hotel::query()->with(['roomTypes' => fn ($q) => $q->where('is_active', true)])->findOrFail($id);
-        $units = $hotel->roomTypes->map(fn ($room) => [
-            'id' => $room->id,
-            'name' => $room->name,
-            'available_units' => $room->total_units,
-            'is_available' => $room->total_units > 0,
-            'max_adults' => $room->max_adults,
-            'max_children' => $room->max_children,
-            'base_price' => (string) $room->base_price,
-            'currency' => $room->currency,
-        ]);
+        $units = $hotel->roomTypes->map(function (RoomType $room) {
+            $searchRow = $this->mapGuestRoomSearchRow($room);
+
+            return [
+                'id' => $room->id,
+                'name' => $searchRow['name'],
+                'available_units' => $room->total_units,
+                'is_available' => $room->total_units > 0,
+                'max_adults' => $room->max_adults,
+                'max_children' => $room->max_children,
+                'base_price' => (string) $room->base_price,
+                'currency' => $room->currency,
+            ];
+        });
 
         return response()->json([
             'property_id' => $hotel->id,
