@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Currency;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Carbon\CarbonInterface;
 use InvalidArgumentException;
 use Symfony\Component\Intl\Currencies;
@@ -14,9 +16,7 @@ class CurrencyService
         'JOD', 'JPY', 'KWD', 'OMR', 'PKR', 'QAR', 'SAR', 'TRY', 'USD', 'YER',
     ];
 
-    public function __construct(private ExchangeRateService $exchangeRates)
-    {
-    }
+    public function __construct(private ExchangeRateService $exchangeRates) {}
 
     public function convert(string|float|int $amount, Currency|string $from, Currency|string $to, CarbonInterface|string|null $at = null): string
     {
@@ -80,9 +80,9 @@ class CurrencyService
     {
         $model = $this->resolveCurrency($currency);
 
-        if (class_exists(\Brick\Math\BigDecimal::class)) {
-            return \Brick\Math\BigDecimal::of((string) $amount)
-                ->toScale($model->decimal_places, \Brick\Math\RoundingMode::HalfUp);
+        if (class_exists(BigDecimal::class)) {
+            return BigDecimal::of((string) $amount)
+                ->toScale($model->decimal_places, RoundingMode::HalfUp);
         }
 
         return number_format(round((float) $amount, $model->decimal_places), $model->decimal_places, '.', '');

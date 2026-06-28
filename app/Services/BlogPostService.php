@@ -74,7 +74,7 @@ class BlogPostService
         $filename = basename($storagePath);
         $isReferenced = BlogPost::query()
             ->whereKeyNot($excludePostId)
-            ->where('featured_image', 'like', '%' . $filename . '%')
+            ->where('featured_image', 'like', '%'.$filename.'%')
             ->exists();
 
         if (! $isReferenced) {

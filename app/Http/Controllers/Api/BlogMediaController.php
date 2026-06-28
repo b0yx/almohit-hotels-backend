@@ -22,13 +22,13 @@ class BlogMediaController extends Controller
 
         $file = $request->file('image');
         $extension = $file->getClientOriginalExtension() ?: 'jpg';
-        $filename = Str::uuid()->toString() . '.' . $extension;
+        $filename = Str::uuid()->toString().'.'.$extension;
         $storedPath = $file->storeAs('blog', $filename, 'public');
 
         return response()->json([
             'path' => $storedPath,
-            'featured_image' => '/storage/' . $storedPath,
-            'url' => url('/storage/' . $storedPath),
+            'featured_image' => '/storage/'.$storedPath,
+            'url' => url('/storage/'.$storedPath),
         ], 201);
     }
 }

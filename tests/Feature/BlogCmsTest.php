@@ -16,9 +16,13 @@ class BlogCmsTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $customer;
+
     private BlogCategory $category;
+
     private string $adminToken;
+
     private string $customerToken;
 
     protected function setUp(): void
@@ -156,6 +160,12 @@ class BlogCmsTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_guest_cannot_manage_blog_posts(): void
+    {
+        $this->postJson('/api/admin/blog/posts/', $this->payload())
+            ->assertStatus(401);
+    }
+
     public function test_admin_can_manage_blog_categories(): void
     {
         $response = $this->postJson('/api/admin/blog/categories/', [
@@ -168,6 +178,7 @@ class BlogCmsTest extends TestCase
 
         $response->assertCreated()->assertJsonPath('slug', 'booking-tips');
     }
+
     public function test_admin_can_partially_patch_blog_post(): void
     {
         $post = BlogPost::query()->create($this->payload());

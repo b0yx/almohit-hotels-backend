@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\Hotel;
+use App\Models\ApiToken;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AuthorizationTest extends TestCase
@@ -12,10 +13,15 @@ class AuthorizationTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $staff;
+
     private User $customer;
+
     private string $adminToken;
+
     private string $staffToken;
+
     private string $customerToken;
 
     protected function setUp(): void
@@ -42,8 +48,9 @@ class AuthorizationTest extends TestCase
 
     private function createToken(User $user): string
     {
-        $plain = \Illuminate\Support\Str::random(64);
-        \App\Models\ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+        $plain = Str::random(64);
+        ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+
         return $plain;
     }
 

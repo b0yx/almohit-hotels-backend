@@ -19,12 +19,19 @@ class BlogEnhancementsTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $staff;
+
     private User $customer;
+
     private BlogCategory $categoryEn;
+
     private BlogCategory $categoryAr;
+
     private string $adminToken;
+
     private string $staffToken;
+
     private string $customerToken;
 
     protected function setUp(): void
@@ -91,7 +98,7 @@ class BlogEnhancementsTest extends TestCase
 
     private function authHeader(string $token): array
     {
-        return ['Authorization' => 'Bearer ' . $token];
+        return ['Authorization' => 'Bearer '.$token];
     }
 
     private function postPayload(array $overrides = []): array
@@ -154,8 +161,8 @@ class BlogEnhancementsTest extends TestCase
     {
         for ($i = 1; $i <= 15; $i++) {
             BlogCategory::query()->create([
-                'name' => 'Category ' . $i,
-                'slug' => 'category-' . $i,
+                'name' => 'Category '.$i,
+                'slug' => 'category-'.$i,
                 'locale' => 'en',
                 'is_active' => true,
             ]);
@@ -268,7 +275,7 @@ class BlogEnhancementsTest extends TestCase
         Storage::disk('public')->assertExists($path2);
 
         // Update post with img2 -> img1 should be deleted from storage
-        $this->patchJson('/api/admin/blog/posts/' . $postId . '/', [
+        $this->patchJson('/api/admin/blog/posts/'.$postId.'/', [
             'featured_image' => $featImg2,
         ], $this->authHeader($this->adminToken))->assertOk();
 
@@ -276,7 +283,7 @@ class BlogEnhancementsTest extends TestCase
         Storage::disk('public')->assertExists($path2);
 
         // Delete post -> img2 should be deleted from storage
-        $this->deleteJson('/api/admin/blog/posts/' . $postId . '/', [], $this->authHeader($this->adminToken))->assertNoContent();
+        $this->deleteJson('/api/admin/blog/posts/'.$postId.'/', [], $this->authHeader($this->adminToken))->assertNoContent();
         Storage::disk('public')->assertMissing($path2);
     }
 }

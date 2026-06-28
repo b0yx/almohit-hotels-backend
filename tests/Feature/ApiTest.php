@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\BookingInquiry;
 use App\Models\Hotel;
 use App\Models\Review;
 use App\Models\RoomType;
@@ -24,6 +23,7 @@ class ApiTest extends TestCase
     private function headersFor(User $user): array
     {
         $token = $user->createToken('test_token')->plainTextToken;
+
         return [
             'Authorization' => "Bearer $token",
             'Accept' => 'application/json',

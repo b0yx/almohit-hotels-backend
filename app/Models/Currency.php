@@ -11,6 +11,7 @@ class Currency extends Model
     use SoftDeletes;
 
     public const SYMBOL_BEFORE = 'before';
+
     public const SYMBOL_AFTER = 'after';
 
     protected $guarded = ['id'];

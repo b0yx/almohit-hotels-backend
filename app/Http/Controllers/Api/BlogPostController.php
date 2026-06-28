@@ -23,7 +23,7 @@ class BlogPostController extends Controller
             $search = $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
@@ -66,7 +66,7 @@ class BlogPostController extends Controller
             $search = $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
@@ -101,6 +101,8 @@ class BlogPostController extends Controller
 
     public function store(BlogPostRequest $request, BlogPostService $service): JsonResponse
     {
+        $this->authorizeBlogAdmin($request);
+
         $post = $service->create($request->validated());
 
         return response()->json(
@@ -120,6 +122,8 @@ class BlogPostController extends Controller
 
     public function update(BlogPostRequest $request, BlogPost $post, BlogPostService $service): JsonResponse
     {
+        $this->authorizeBlogAdmin($request);
+
         $post = $service->update($post, $request->validated());
 
         return response()->json(
@@ -145,6 +149,7 @@ class BlogPostController extends Controller
             $allowed = ['created_at', 'published_at', 'title', 'status', 'id', 'updated_at'];
             if (in_array($column, $allowed, true)) {
                 $query->orderBy($column, $direction);
+
                 return;
             }
         }
@@ -159,13 +164,18 @@ class BlogPostController extends Controller
     private function pageSize(Request $request): int
     {
         $perPage = $request->query('per_page', $request->query('page_size', 20));
+
         return max(1, min(100, (int) $perPage));
     }
 
     private function authorizeBlogAdmin(Request $request): void
     {
         $user = $request->user();
-        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+        if (! $user) {
+            abort(401, 'Authentication credentials were not provided.');
+        }
+
+        if (! $user->isAdmin() && ! $user->isStaffRole()) {
             abort(403, 'You do not have permission to perform this action.');
         }
     }

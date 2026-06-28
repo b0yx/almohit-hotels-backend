@@ -31,6 +31,7 @@ class BlogPostResource extends JsonResource
                 if (! $request->is('api/admin/*')) {
                     $faqs = $faqs->where('is_active', true);
                 }
+
                 return $faqs->sortBy('sort_order')->values()->map(function ($faq) use ($request) {
                     $item = [
                         'id' => $faq->id,
@@ -41,6 +42,7 @@ class BlogPostResource extends JsonResource
                         $item['sort_order'] = $faq->sort_order;
                         $item['is_active'] = (bool) $faq->is_active;
                     }
+
                     return $item;
                 })->all();
             }),

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\BookingGuest;
-use App\Models\Currency;
 use App\Models\BookingInquiry;
+use App\Models\Currency;
 use App\Models\RoomType;
 use App\Services\AuditService;
 use App\Support\CompatResponse;
@@ -29,9 +29,17 @@ class BookingController extends CrudController
         $booking = BookingInquiry::query()->findOrFail($id);
         $user = $request->user();
 
-        if ($user && $user->isStaffRole() && ! $user->isAdmin()) {
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
+        }
+
+        if ($user->isStaffRole() && ! $user->isAdmin()) {
             $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
             if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to access this booking.'], 403);
+            }
+        } elseif (! $user->isAdmin()) {
+            if ((int) $booking->customer_id !== (int) $user->id) {
                 return response()->json(['detail' => 'You do not have permission to access this booking.'], 403);
             }
         }
@@ -52,9 +60,17 @@ class BookingController extends CrudController
         $booking = BookingInquiry::query()->findOrFail($id);
         $user = $request->user();
 
-        if ($user && $user->isStaffRole() && ! $user->isAdmin()) {
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
+        }
+
+        if ($user->isStaffRole() && ! $user->isAdmin()) {
             $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
             if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to update this booking.'], 403);
+            }
+        } elseif (! $user->isAdmin()) {
+            if ((int) $booking->customer_id !== (int) $user->id) {
                 return response()->json(['detail' => 'You do not have permission to update this booking.'], 403);
             }
         }
@@ -80,9 +96,17 @@ class BookingController extends CrudController
         $booking = BookingInquiry::query()->findOrFail($id);
         $user = $request->user();
 
-        if ($user && $user->isStaffRole() && ! $user->isAdmin()) {
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
+        }
+
+        if ($user->isStaffRole() && ! $user->isAdmin()) {
             $isAssigned = $booking->hotel->assignedStaff()->whereKey($user->id)->exists();
             if (! $isAssigned) {
+                return response()->json(['detail' => 'You do not have permission to delete this booking.'], 403);
+            }
+        } elseif (! $user->isAdmin()) {
+            if ((int) $booking->customer_id !== (int) $user->id) {
                 return response()->json(['detail' => 'You do not have permission to delete this booking.'], 403);
             }
         }

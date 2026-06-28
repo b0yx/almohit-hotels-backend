@@ -13,9 +13,7 @@ use Illuminate\Validation\Rule;
 
 class CurrencyController extends Controller
 {
-    public function __construct(private CurrencyService $currencies)
-    {
-    }
+    public function __construct(private CurrencyService $currencies) {}
 
     public function index(Request $request): JsonResponse
     {

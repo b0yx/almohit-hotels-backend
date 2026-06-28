@@ -14,7 +14,20 @@ class BlogPostRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
+
         return $user && ($user->isAdmin() || $user->isStaffRole());
+    }
+
+    protected function failedAuthorization(): void
+    {
+        $message = $this->user()
+            ? 'You do not have permission to perform this action.'
+            : 'Authentication credentials were not provided.';
+
+        throw new HttpResponseException(response()->json([
+            'message' => $message,
+            'detail' => $message,
+        ], $this->user() ? 403 : 401));
     }
 
     public function rules(): array
