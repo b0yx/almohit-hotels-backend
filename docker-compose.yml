@@ -1,0 +1,121 @@
+services:
+  # ============================================================================
+  # Laravel PHP-FPM Backend Application
+  # ============================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: almohit_backend
+    restart: unless-stopped
+    environment:
+      APP_NAME: "Almohit Hotels"
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY:-base64:PaVh045UVwDtvM97TlH9pTUZ6ilP/+88XPZqp9XLGcM=}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8020}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-almohit_hotels}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: sync
+      RUN_MIGRATIONS: "true"
+    volumes:
+      - app_storage:/var/www/html/storage
+    networks:
+      - almohit_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ============================================================================
+  # Nginx Web Server
+  # ============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: almohit_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8020}:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - app_storage:/var/www/html/storage
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - almohit_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # PostgreSQL Database Server
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: almohit_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-almohit_hotels}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - almohit_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-almohit_hotels}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Redis Cache & Session Store
+  # ============================================================================
+  redis:
+    image: redis:alpine
+    container_name: almohit_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - almohit_network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# ==============================================================================
+# Persistent Volumes & Networks
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_storage:
+    driver: local
+
+networks:
+  almohit_network:
+    driver: bridge
