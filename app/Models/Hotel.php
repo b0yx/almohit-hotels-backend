@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Hotel extends Model
@@ -70,22 +71,22 @@ class Hotel extends Model
         return $this->images()->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order')->first();
     }
 
-    public function policy(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function policy(): HasOne
     {
         return $this->hasOne(HotelPolicy::class);
     }
 
-    public function socialMedia(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function socialMedia(): HasOne
     {
         return $this->hasOne(PropertySocialMedia::class);
     }
 
-    public function contacts(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function contacts(): HasOne
     {
         return $this->hasOne(PropertyContacts::class);
     }
 
-    public function setupStatus(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function setupStatus(): HasOne
     {
         return $this->hasOne(PropertySetupStatus::class);
     }

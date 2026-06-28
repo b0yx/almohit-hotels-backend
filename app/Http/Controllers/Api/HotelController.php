@@ -33,6 +33,41 @@ class HotelController extends CrudController
         }
     }
 
+    private function staffOrAdminError(Request $request, string $action, ?int $hotelId = null): ?JsonResponse
+    {
+        if ($error = $this->checkAuthorization($request, $action, $hotelId)) {
+            return $error;
+        }
+
+        if ($hotelId !== null) {
+            $this->authorizeStaffHotelAccess($request, $hotelId);
+        }
+
+        return null;
+    }
+
+    private function publicAccessError(Request $request, int $hotelId): ?JsonResponse
+    {
+        $user = $request->user();
+        if ($user && ($user->isAdmin() || $user->isStaffRole())) {
+            $this->authorizeStaffHotelAccess($request, $hotelId);
+
+            return null;
+        }
+
+        $isVisible = Hotel::query()
+            ->whereKey($hotelId)
+            ->where('is_active', true)
+            ->where('publishing_status', 'published')
+            ->exists();
+
+        if (! $isVisible) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
+        return null;
+    }
+
     public function show(int $id): JsonResponse
     {
         $request = request();
@@ -50,11 +85,7 @@ class HotelController extends CrudController
                 return response()->json(CompatResponse::hotel($hotel));
             }
 
-            if (! $user) {
-                return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
-            }
-
-            abort(404);
+            return response()->json(['detail' => 'Hotel not found.'], 404);
         }
 
         $this->authorizeStaffHotelAccess($request, $id);
@@ -64,7 +95,9 @@ class HotelController extends CrudController
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
 
         $validated = $this->validateHotelPayload($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
@@ -93,7 +126,9 @@ class HotelController extends CrudController
 
     public function destroy(int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess(request(), $id);
+        if ($error = $this->staffOrAdminError(request(), 'destroy', $id)) {
+            return $error;
+        }
 
         return parent::destroy($id);
     }
@@ -123,6 +158,10 @@ class HotelController extends CrudController
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->checkAuthorization($request, 'store')) {
+            return $error;
+        }
+
         $validated = $this->validateHotelPayload($request);
         $data = $this->normalizeInput($validated);
         $data = LocalizedMapper::mapInputForSave(Hotel::class, $data, null, false);
@@ -151,7 +190,10 @@ class HotelController extends CrudController
 
     public function publish(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
@@ -164,7 +206,10 @@ class HotelController extends CrudController
 
     public function unpublish(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
@@ -177,7 +222,10 @@ class HotelController extends CrudController
 
     public function archive(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
@@ -190,7 +238,10 @@ class HotelController extends CrudController
 
     public function unarchive(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
@@ -203,7 +254,10 @@ class HotelController extends CrudController
 
     public function readiness(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'show', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with(['images', 'roomTypes'])->findOrFail($id);
         $errors = CompatResponse::computeReadinessErrors($hotel);
 
@@ -222,7 +276,10 @@ class HotelController extends CrudController
 
     public function setupStatus(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'show', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with('setupStatus')->findOrFail($id);
         $setup = $hotel->setupStatus;
 
@@ -453,7 +510,10 @@ class HotelController extends CrudController
 
     public function autosave(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $this->update($request, $id);
         $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities', 'reviews'])->findOrFail($id);
         $setup = $hotel->setupStatus;
@@ -478,7 +538,10 @@ class HotelController extends CrudController
 
     public function workspace(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'show', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
 
         return response()->json([
@@ -492,7 +555,10 @@ class HotelController extends CrudController
 
     public function roomsSearch(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
         $rooms = RoomType::where('hotel_id', $id)
             ->where('is_active', true)
             ->get()
@@ -528,7 +594,10 @@ class HotelController extends CrudController
 
     public function availability(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with(['roomTypes' => fn ($q) => $q->where('is_active', true)])->findOrFail($id);
         $units = $hotel->roomTypes->map(function (RoomType $room) {
             $searchRow = $this->mapGuestRoomSearchRow($room);
@@ -560,7 +629,10 @@ class HotelController extends CrudController
 
     public function rates(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
 
         return response()->json([

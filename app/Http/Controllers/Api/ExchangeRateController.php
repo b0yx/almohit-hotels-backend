@@ -14,9 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class ExchangeRateController extends Controller
 {
-    public function __construct(private ExchangeRateService $exchangeRates)
-    {
-    }
+    public function __construct(private ExchangeRateService $exchangeRates) {}
 
     public function index(Request $request): JsonResponse
     {

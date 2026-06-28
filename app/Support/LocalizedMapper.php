@@ -36,7 +36,7 @@ class LocalizedMapper
         $fields = self::$modelFieldMap[$modelClass] ?? [];
 
         foreach ($fields as $field) {
-            $arField = $field . '_ar';
+            $arField = $field.'_ar';
             if (array_key_exists($field, $data)) {
                 $value = $data[$field];
                 if ($locale === 'ar') {
@@ -59,7 +59,7 @@ class LocalizedMapper
         $fields = self::$modelFieldMap[$modelClass] ?? [];
 
         foreach ($fields as $field) {
-            $arField = $field . '_ar';
+            $arField = $field.'_ar';
             if (array_key_exists($arField, $data)) {
                 if ($locale === 'ar') {
                     $data[$field] = $data[$arField] !== null && $data[$arField] !== '' ? $data[$arField] : ($data[$field] ?? null);

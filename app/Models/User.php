@@ -31,7 +31,9 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     public const ROLE_CUSTOMER = 'customer';
+
     public const ROLE_STAFF = 'staff';
+
     public const ROLE_ADMIN = 'admin';
 
     public function getNameAttribute(): string

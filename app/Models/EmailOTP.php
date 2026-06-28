@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class EmailOTP extends Model
 {
     protected $table = 'email_otps';
+
     protected $guarded = ['id'];
 
     protected function casts(): array

@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\AuthenticateApiToken;
+use App\Http\Middleware\RequireRole;
+use App\Http\Middleware\ResolvePublicHotel;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,9 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'api.token' => \App\Http\Middleware\AuthenticateApiToken::class,
-            'tenant.context' => \App\Http\Middleware\ResolvePublicHotel::class,
-            'role' => \App\Http\Middleware\RequireRole::class,
+            'api.token' => AuthenticateApiToken::class,
+            'tenant.context' => ResolvePublicHotel::class,
+            'role' => RequireRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

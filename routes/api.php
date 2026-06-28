@@ -21,39 +21,40 @@ use App\Models\RoomPrice;
 use App\Models\RoomType;
 use App\Models\ServiceCategory;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 if (! function_exists('imageRoutes')) {
-function imageRoutes(string $type): void
-{
-    $c = ImageUploadController::class;
-    Route::prefix($type)->group(function () use ($c) {
-        Route::get('/', [$c, 'index']);
-        Route::post('/', [$c, 'store']);
-        Route::get('{id}', [$c, 'show'])->whereNumber('id');
-        Route::patch('{id}', [$c, 'update'])->whereNumber('id');
-        Route::delete('{id}', [$c, 'destroy'])->whereNumber('id');
-    });
-}
+    function imageRoutes(string $type): void
+    {
+        $c = ImageUploadController::class;
+        Route::prefix($type)->group(function () use ($c) {
+            Route::get('/', [$c, 'index']);
+            Route::post('/', [$c, 'store']);
+            Route::get('{id}', [$c, 'show'])->whereNumber('id');
+            Route::patch('{id}', [$c, 'update'])->whereNumber('id');
+            Route::delete('{id}', [$c, 'destroy'])->whereNumber('id');
+        });
+    }
 }
 
 Route::middleware(['tenant.context', 'api.token'])->group(function () {
-    Route::get('/health/', function (): \Illuminate\Http\JsonResponse {
+    Route::get('/health/', function (): JsonResponse {
         $checks = [];
 
         try {
             DB::connection()->getPdo();
             $checks['database'] = 'ok';
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $checks['database'] = 'error: '.$e->getMessage();
         }
 
         try {
             Cache::store(config('cache.default'))->get('health-check');
             $checks['cache'] = 'ok';
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $checks['cache'] = 'error: '.$e->getMessage();
         }
 

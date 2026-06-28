@@ -89,7 +89,7 @@ class AuditService
 
     public static function changes(?Model $old, array $data): ?array
     {
-        if (!$old) {
+        if (! $old) {
             return null;
         }
         $changes = [];
@@ -99,6 +99,7 @@ class AuditService
                 $changes[$key] = ['old' => $oldValue, 'new' => $value];
             }
         }
+
         return empty($changes) ? null : $changes;
     }
 }

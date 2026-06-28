@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\ApiToken;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
-use App\Models\Faq;
 use App\Models\Hotel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,7 +16,9 @@ class FaqSystemTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private BlogCategory $category;
+
     private string $adminToken;
 
     protected function setUp(): void
@@ -54,7 +55,7 @@ class FaqSystemTest extends TestCase
 
     private function authHeader(): array
     {
-        return ['Authorization' => 'Bearer ' . $this->adminToken];
+        return ['Authorization' => 'Bearer '.$this->adminToken];
     }
 
     public function test_create_property_with_faqs(): void
@@ -121,7 +122,7 @@ class FaqSystemTest extends TestCase
             ],
         ];
 
-        $response = $this->patchJson('/api/properties/' . $hotel->id . '/', $payload, $this->authHeader());
+        $response = $this->patchJson('/api/properties/'.$hotel->id.'/', $payload, $this->authHeader());
         $response->assertOk()
             ->assertJsonCount(2, 'faqs')
             ->assertJsonPath('faqs.0.question', 'Updated Q1')
@@ -143,7 +144,7 @@ class FaqSystemTest extends TestCase
         ]);
         $hotel->faqs()->create(['question' => 'Q1', 'answer' => 'A1']);
 
-        $response = $this->patchJson('/api/properties/' . $hotel->id . '/', ['faqs' => []], $this->authHeader());
+        $response = $this->patchJson('/api/properties/'.$hotel->id.'/', ['faqs' => []], $this->authHeader());
         $response->assertOk()->assertJsonCount(0, 'faqs');
 
         $this->assertEquals(0, $hotel->faqs()->count());
@@ -195,7 +196,7 @@ class FaqSystemTest extends TestCase
         ]);
         $faq = $post->faqs()->create(['question' => 'Old Question', 'answer' => 'Old Answer']);
 
-        $response = $this->patchJson('/api/admin/blog/posts/' . $post->id . '/', [
+        $response = $this->patchJson('/api/admin/blog/posts/'.$post->id.'/', [
             'faqs' => [
                 [
                     'id' => $faq->id,
@@ -256,7 +257,7 @@ class FaqSystemTest extends TestCase
         $post->faqs()->create(['question' => 'Inactive Q', 'answer' => 'A2', 'sort_order' => 10, 'is_active' => false]);
         $post->faqs()->create(['question' => 'First Q', 'answer' => 'A1', 'sort_order' => 5, 'is_active' => true]);
 
-        $response = $this->getJson('/api/blog/posts/' . $post->slug . '/');
+        $response = $this->getJson('/api/blog/posts/'.$post->slug.'/');
         $response->assertOk()
             ->assertJsonCount(2, 'faqs')
             ->assertJsonPath('faqs.0.question', 'First Q')

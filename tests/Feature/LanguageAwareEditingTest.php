@@ -14,6 +14,7 @@ class LanguageAwareEditingTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private string $adminToken;
 
     protected function setUp(): void
@@ -44,7 +45,7 @@ class LanguageAwareEditingTest extends TestCase
     private function authHeader(string $locale = 'en'): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->adminToken,
+            'Authorization' => 'Bearer '.$this->adminToken,
             'X-Locale' => $locale,
         ];
     }
@@ -63,7 +64,7 @@ class LanguageAwareEditingTest extends TestCase
             'stars' => 5,
         ]);
 
-        $response = $this->patchJson('/api/properties/' . $hotel->id . '/', [
+        $response = $this->patchJson('/api/properties/'.$hotel->id.'/', [
             'name' => 'Updated English Name',
             'description' => 'Updated English Description',
         ], $this->authHeader('en'));
@@ -93,7 +94,7 @@ class LanguageAwareEditingTest extends TestCase
             'stars' => 5,
         ]);
 
-        $response = $this->patchJson('/api/properties/' . $hotel->id . '/', [
+        $response = $this->patchJson('/api/properties/'.$hotel->id.'/', [
             'name' => 'الاسم العربي المحدث',
             'description' => 'الوصف العربي المحدث',
         ], $this->authHeader('ar'));
@@ -138,12 +139,12 @@ class LanguageAwareEditingTest extends TestCase
         ]);
 
         // Fetch in English mode
-        $this->getJson('/api/room-types/' . $roomId . '/', $this->authHeader('en'))
+        $this->getJson('/api/room-types/'.$roomId.'/', $this->authHeader('en'))
             ->assertOk()
             ->assertJsonPath('description', null);
 
         // Fetch in Arabic mode
-        $this->getJson('/api/room-types/' . $roomId . '/', $this->authHeader('ar'))
+        $this->getJson('/api/room-types/'.$roomId.'/', $this->authHeader('ar'))
             ->assertOk()
             ->assertJsonPath('name', 'غرفة تنفيذي');
     }
@@ -164,7 +165,7 @@ class LanguageAwareEditingTest extends TestCase
             'cancellation_policy_ar' => 'سياسة الإلغاء القديمة',
         ]);
 
-        $response = $this->patchJson('/api/properties/' . $hotel->id . '/', [
+        $response = $this->patchJson('/api/properties/'.$hotel->id.'/', [
             'policy' => [
                 'cancellation_policy' => 'سياسة الإلغاء المحدثة',
             ],

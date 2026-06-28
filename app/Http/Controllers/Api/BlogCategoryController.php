@@ -25,7 +25,7 @@ class BlogCategoryController extends Controller
             $search = $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
@@ -96,6 +96,7 @@ class BlogCategoryController extends Controller
     private function pageSize(Request $request): int
     {
         $perPage = $request->query('per_page', $request->query('page_size', 20));
+
         return max(1, min(100, (int) $perPage));
     }
 
