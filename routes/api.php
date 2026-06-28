@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BlogCategoryController;
+use App\Http\Controllers\Api\BlogMediaController;
 use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CrudController;
+use App\Http\Controllers\Api\CurrencyController;
+use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\HotelController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\ReviewController;
@@ -66,6 +69,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/public/hotel-context/', [HotelController::class, 'publicContext']);
     Route::get('/blog/posts/', [BlogPostController::class, 'publicIndex']);
     Route::get('/blog/posts/{slug}/', [BlogPostController::class, 'publicShow']);
+    Route::apiResource('currencies', CurrencyController::class)->parameters(['currencies' => 'id'])->only(['index', 'show']);
 
     Route::prefix('auth')->group(function () {
         Route::post('/signup/', [AuthController::class, 'signup'])->middleware('throttle:5,30');
@@ -102,6 +106,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{id}/rooms/search/', [HotelController::class, 'roomsSearch']);
     Route::get('/properties/{id}/availability/', [HotelController::class, 'availability']);
     Route::get('/properties/{id}/rates/', [HotelController::class, 'rates']);
+    Route::get('/properties/{property}/rooms', [HotelController::class, 'publicRooms']);
     Route::match(['get', 'post'], '/properties/{property}/reviews/', [ReviewController::class, 'propertyReviews']);
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
 
@@ -113,7 +118,14 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
 
     Route::apiResource('reviews', ReviewController::class)->parameters(['reviews' => 'id'])->only(['index', 'show', 'update', 'destroy']);
 
+    Route::prefix('admin/finance')->middleware('role:admin')->group(function () {
+        Route::apiResource('currencies', CurrencyController::class)->parameters(['currencies' => 'id'])->names('admin.finance.currencies');
+        Route::apiResource('exchange-rates', ExchangeRateController::class)->parameters(['exchange-rates' => 'id'])->names('admin.finance.exchange-rates');
+    });
+
     Route::prefix('admin/blog')->group(function () {
+        Route::post('media', [BlogMediaController::class, 'store']);
+        Route::post('slug', [BlogPostController::class, 'generateSlug']);
         Route::apiResource('categories', BlogCategoryController::class)->parameters(['categories' => 'category']);
         Route::apiResource('posts', BlogPostController::class)->parameters(['posts' => 'post']);
     });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\AuditService;
 use App\Support\CompatResponse;
+use App\Support\LocalizedMapper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -121,6 +122,7 @@ class CrudController extends Controller
     protected function prepareModelInput(Request $request, ?Model $existing = null): array
     {
         $data = $this->normalizeInput($request->except(['icon']));
+        $data = LocalizedMapper::mapInputForSave($this->modelClass, $data, null, $existing !== null && $existing->exists);
 
         foreach (['is_active', 'is_featured', 'advance_booking_required', 'smoking_allowed', 'extra_bed_allowed', 'breakfast_included'] as $field) {
             if (! $request->has($field)) {
@@ -173,8 +175,8 @@ class CrudController extends Controller
         return match ($this->modelClass) {
             \App\Models\RoomType::class => ['images', 'prices'],
             \App\Models\HotelService::class => ['images', 'hotel', 'category'],
-            \App\Models\BookingInquiry::class => ['hotel', 'roomType', 'guests'],
-            \App\Models\Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'],
+            \App\Models\BookingInquiry::class => ['hotel', 'roomType', 'guests', 'bookingCurrency'],
+            \App\Models\Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'],
             default => [],
         };
     }

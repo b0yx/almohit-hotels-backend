@@ -6,6 +6,8 @@ use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
+use App\Models\Currency;
+use App\Models\ExchangeRate;
 use App\Models\Hotel;
 use App\Models\HotelAmenity;
 use App\Models\HotelImage;
@@ -33,6 +35,8 @@ class AuditService
         ServiceCategory::class => 'service_category',
         AvailabilityBlock::class => 'availability_block',
         ContactMessage::class => 'contact_message',
+        Currency::class => 'currency',
+        ExchangeRate::class => 'exchange_rate',
         HotelImage::class => 'hotel_image',
         RoomTypeImage::class => 'room_type_image',
         ServiceImage::class => 'service_image',

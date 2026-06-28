@@ -9,16 +9,27 @@ use App\Models\BlogPost;
 use App\Services\BlogPostService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class BlogPostController extends Controller
 {
     public function publicIndex(Request $request): JsonResponse
     {
-        $posts = BlogPost::query()
+        $query = BlogPost::query()
             ->publiclyVisible()
-            ->with(['category', 'author'])
-            ->latest('published_at')
-            ->paginate($this->pageSize($request));
+            ->with(['category', 'author', 'hotel.images', 'faqs']);
+
+        if ($request->query('search')) {
+            $search = $request->query('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        $this->applySorting($query, $request, 'published_at');
+
+        $posts = $query->paginate($this->pageSize($request));
 
         return response()->json([
             'count' => $posts->total(),
@@ -32,7 +43,7 @@ class BlogPostController extends Controller
     {
         $post = BlogPost::query()
             ->publiclyVisible()
-            ->with(['category', 'author', 'hotel.images', 'hotel.amenities', 'hotel.reviews', 'hotel.policy', 'hotel.socialMedia', 'hotel.contacts', 'hotel.setupStatus'])
+            ->with(['category', 'author', 'hotel.images', 'hotel.amenities', 'hotel.reviews', 'hotel.policy', 'hotel.socialMedia', 'hotel.contacts', 'hotel.setupStatus', 'faqs'])
             ->where('slug', $slug)
             ->firstOrFail();
 
@@ -43,7 +54,7 @@ class BlogPostController extends Controller
     {
         $this->authorizeBlogAdmin($request);
 
-        $query = BlogPost::query()->with(['category', 'author', 'hotel.images']);
+        $query = BlogPost::query()->with(['category', 'author', 'hotel.images', 'faqs']);
 
         foreach (['status', 'locale', 'category_id', 'hotel_id', 'author_id'] as $filter) {
             if ($request->query($filter) !== null && $request->query($filter) !== '') {
@@ -51,7 +62,17 @@ class BlogPostController extends Controller
             }
         }
 
-        $posts = $query->latest('id')->paginate($this->pageSize($request));
+        if ($request->query('search')) {
+            $search = $request->query('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        $this->applySorting($query, $request, 'id');
+
+        $posts = $query->paginate($this->pageSize($request));
 
         return response()->json([
             'count' => $posts->total(),
@@ -61,12 +82,29 @@ class BlogPostController extends Controller
         ]);
     }
 
+    public function generateSlug(Request $request): JsonResponse
+    {
+        $this->authorizeBlogAdmin($request);
+
+        $request->validate([
+            'text' => ['required', 'string', 'max:255'],
+            'locale' => ['nullable', 'string', 'max:10'],
+        ]);
+
+        $text = $request->input('text');
+        $slug = Str::slug($text);
+
+        return response()->json([
+            'slug' => $slug,
+        ]);
+    }
+
     public function store(BlogPostRequest $request, BlogPostService $service): JsonResponse
     {
         $post = $service->create($request->validated());
 
         return response()->json(
-            BlogPostResource::make($post->load(['category', 'author', 'hotel.images']))->resolve($request),
+            BlogPostResource::make($post->load(['category', 'author', 'hotel.images', 'faqs']))->resolve($request),
             201
         );
     }
@@ -76,7 +114,7 @@ class BlogPostController extends Controller
         $this->authorizeBlogAdmin($request);
 
         return response()->json(
-            BlogPostResource::make($post->load(['category', 'author', 'hotel.images']))->resolve($request)
+            BlogPostResource::make($post->load(['category', 'author', 'hotel.images', 'faqs']))->resolve($request)
         );
     }
 
@@ -85,7 +123,7 @@ class BlogPostController extends Controller
         $post = $service->update($post, $request->validated());
 
         return response()->json(
-            BlogPostResource::make($post->load(['category', 'author', 'hotel.images']))->resolve($request)
+            BlogPostResource::make($post->load(['category', 'author', 'hotel.images', 'faqs']))->resolve($request)
         );
     }
 
@@ -97,9 +135,31 @@ class BlogPostController extends Controller
         return response()->json(null, 204);
     }
 
+    private function applySorting($query, Request $request, string $defaultSort = 'id'): void
+    {
+        if ($request->query('sort')) {
+            $sortParam = $request->query('sort');
+            $direction = str_starts_with($sortParam, '-') ? 'desc' : 'asc';
+            $column = ltrim($sortParam, '-');
+
+            $allowed = ['created_at', 'published_at', 'title', 'status', 'id', 'updated_at'];
+            if (in_array($column, $allowed, true)) {
+                $query->orderBy($column, $direction);
+                return;
+            }
+        }
+
+        if ($defaultSort === 'published_at') {
+            $query->latest('published_at');
+        } else {
+            $query->latest('id');
+        }
+    }
+
     private function pageSize(Request $request): int
     {
-        return max(1, min(100, (int) $request->query('page_size', 20)));
+        $perPage = $request->query('per_page', $request->query('page_size', 20));
+        return max(1, min(100, (int) $perPage));
     }
 
     private function authorizeBlogAdmin(Request $request): void
