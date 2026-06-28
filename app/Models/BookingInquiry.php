@@ -29,6 +29,11 @@ class BookingInquiry extends Model
         return $this->belongsTo(RoomType::class);
     }
 
+    public function bookingCurrency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'booking_currency_id');
+    }
+
     public function guests(): HasMany
     {
         return $this->hasMany(BookingGuest::class);

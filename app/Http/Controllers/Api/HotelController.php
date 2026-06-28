@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\RoomResource;
 use App\Models\Hotel;
 use App\Models\RoomType;
 use App\Services\AuditService;
+use App\Services\FaqService;
 use App\Support\CompatResponse;
+use App\Support\LocalizedMapper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -42,19 +45,23 @@ class HotelController extends CrudController
         $validated = $this->validateHotelPayload($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
         $data = $this->normalizeInput($validated);
+        $data = LocalizedMapper::mapInputForSave(Hotel::class, $data, null, true);
         if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
             $data['video_url'] = '';
         }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
+        $faqsData = array_key_exists('faqs', $data) ? $data['faqs'] : null;
+        unset($data['faqs']);
         $changes = AuditService::changes($hotel, $data);
         $hotel->fill($data)->save();
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
         $this->syncCoverImage($hotel, $coverImageId);
+        FaqService::syncFaqs($hotel, $faqsData);
 
-        $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus']);
+        $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
         AuditService::log('updated', 'hotel', $fresh, $changes);
 
         return response()->json(CompatResponse::hotel($fresh));
@@ -68,7 +75,7 @@ class HotelController extends CrudController
 
     public function index(Request $request): JsonResponse
     {
-        $query = Hotel::query()->with(['amenities', 'images']);
+        $query = Hotel::query()->with(['amenities', 'images', 'faqs']);
         $user = $request->user();
         $publicHotel = $request->attributes->get('public_hotel');
 
@@ -86,28 +93,32 @@ class HotelController extends CrudController
             }
         }
 
-        return response()->json(CompatResponse::page($query->latest('id')->paginate(20)));
+        return response()->json(CompatResponse::page($query->latest('id')->paginate($this->pageSize($request))));
     }
 
     public function store(Request $request): JsonResponse
     {
         $validated = $this->validateHotelPayload($request);
         $data = $this->normalizeInput($validated);
+        $data = LocalizedMapper::mapInputForSave(Hotel::class, $data, null, false);
         if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
             $data['video_url'] = '';
         }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
-        $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? Str::random(8));
+        $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? $data['name_ar'] ?? Str::random(8));
         $data['publishing_status'] = $data['publishing_status'] ?? 'draft';
 
+        $faqsData = array_key_exists('faqs', $data) ? $data['faqs'] : null;
+        unset($data['faqs']);
         $hotel = Hotel::query()->create($data);
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
         $this->syncCoverImage($hotel, $coverImageId);
+        FaqService::syncFaqs($hotel, $faqsData);
 
-        $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus']);
+        $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
         AuditService::log('created', 'hotel', $fresh);
 
         return response()->json(CompatResponse::hotel($fresh), 201);
@@ -243,6 +254,12 @@ class HotelController extends CrudController
             'contacts' => ['sometimes', 'array'],
             'cover_image_id' => ['sometimes', 'nullable', 'integer'],
             'video_url' => ['nullable', 'string', 'max:500'],
+            'faqs' => ['sometimes', 'nullable', 'array', 'max:50'],
+            'faqs.*.id' => ['sometimes', 'nullable', 'integer', 'exists:faqs,id'],
+            'faqs.*.question' => ['required_with:faqs', 'string', 'max:255'],
+            'faqs.*.answer' => ['required_with:faqs', 'string'],
+            'faqs.*.sort_order' => ['nullable', 'integer'],
+            'faqs.*.is_active' => ['sometimes', 'boolean'],
         ]);
     }
 
@@ -262,9 +279,10 @@ class HotelController extends CrudController
     private function syncNestedHotelRelations(Hotel $hotel, array $nested): void
     {
         if (array_key_exists('policy', $nested)) {
+            $isPolicyUpdate = $hotel->policy()->exists();
             $hotel->policy()->updateOrCreate(
                 ['hotel_id' => $hotel->id],
-                $this->filterPolicyPayload($nested['policy'])
+                $this->filterPolicyPayload($nested['policy'], $isPolicyUpdate)
             );
         }
 
@@ -283,7 +301,7 @@ class HotelController extends CrudController
         }
     }
 
-    private function filterPolicyPayload(array $policy): array
+    private function filterPolicyPayload(array $policy, bool $isUpdate = false): array
     {
         $allowed = [
             'check_in_time',
@@ -301,6 +319,7 @@ class HotelController extends CrudController
             'important_notes',
         ];
 
+        $policy = LocalizedMapper::mapInputForSave(\App\Models\HotelPolicy::class, $policy, null, $isUpdate);
         return collect($policy)->only($allowed)->map(function ($value, $key) {
             if (in_array($key, ['check_in_time', 'check_out_time'], true)) {
                 return $value === '' || $value === null ? null : (string) $value;
@@ -495,5 +514,39 @@ class HotelController extends CrudController
             'status' => $request->attributes->get('public_hotel_status'),
             'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing('images')) : null,
         ]);
+    }
+
+    public function publicRooms(Request $request, string $property): JsonResponse
+    {
+        $hotel = Hotel::query()
+            ->where('publishing_status', 'published')
+            ->where('is_active', true)
+            ->where(function ($q) use ($property) {
+                if (is_numeric($property)) {
+                    $q->where('id', (int) $property);
+                } else {
+                    $q->where('slug', $property);
+                }
+            })
+            ->first();
+
+        if (! $hotel) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
+        $rooms = RoomType::query()
+            ->where('hotel_id', $hotel->id)
+            ->where('is_active', true)
+            ->where('total_units', '>', 0)
+            ->with(['images' => fn ($q) => $q->where('is_active', true)])
+            ->get();
+
+        return response()->json(RoomResource::collection($rooms)->resolve($request));
+    }
+
+    private function pageSize(Request $request): int
+    {
+        $perPage = $request->query('per_page', $request->query('page_size', 20));
+        return max(1, min(100, (int) $perPage));
     }
 }

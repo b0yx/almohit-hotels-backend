@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class BlogPost extends Model
 {
@@ -17,11 +18,23 @@ class BlogPost extends Model
 
     protected $guarded = ['id'];
 
+    protected static function booted(): void
+    {
+        static::deleting(function ($post) {
+            $post->faqs()->delete();
+        });
+    }
+
     protected function casts(): array
     {
         return [
             'published_at' => 'datetime',
         ];
+    }
+
+    public function faqs(): MorphMany
+    {
+        return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
     }
 
     public function category(): BelongsTo

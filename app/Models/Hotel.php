@@ -5,10 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Hotel extends Model
 {
     protected $guarded = ['id'];
+
+    protected static function booted(): void
+    {
+        static::deleting(function ($hotel) {
+            $hotel->faqs()->delete();
+        });
+    }
 
     protected function casts(): array
     {
@@ -20,6 +28,11 @@ class Hotel extends Model
             'is_active' => 'boolean',
             'published_at' => 'datetime',
         ];
+    }
+
+    public function faqs(): MorphMany
+    {
+        return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
     }
 
     public function amenities(): BelongsToMany

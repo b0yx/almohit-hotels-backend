@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\BookingGuest;
+use App\Models\Currency;
 use App\Models\BookingInquiry;
 use App\Models\RoomType;
 use App\Services\AuditService;
@@ -94,7 +95,7 @@ class BookingController extends CrudController
 
     public function index(Request $request): JsonResponse
     {
-        $query = BookingInquiry::query()->with(['hotel', 'roomType', 'guests']);
+        $query = BookingInquiry::query()->with(['hotel', 'roomType', 'guests', 'bookingCurrency']);
         $user = $request->user();
 
         if (! $user) {
@@ -148,9 +149,18 @@ class BookingController extends CrudController
 
         $nights = max(1, now()->parse($bookingData['check_in'])->diffInDays(now()->parse($bookingData['check_out'])));
         $bookingData['estimated_total'] = (float) ($roomType->base_price ?: 0) * $nights;
+        $bookingCurrency = Currency::query()->where('code', strtoupper((string) $roomType->currency))->first();
+        if ($bookingCurrency) {
+            $bookingData['booking_currency_id'] = $bookingCurrency->id;
+            $bookingData['exchange_rate'] = 1;
+        }
+        $bookingData['subtotal'] = $bookingData['estimated_total'];
+        $bookingData['tax'] = 0;
+        $bookingData['discount'] = 0;
+        $bookingData['total'] = $bookingData['estimated_total'];
 
         $booking = DB::transaction(fn () => BookingInquiry::query()->create($bookingData));
-        $fresh = $booking->fresh(['hotel', 'roomType']);
+        $fresh = $booking->fresh(['hotel', 'roomType', 'bookingCurrency']);
         AuditService::log('created', 'booking', $fresh);
 
         return response()->json(CompatResponse::booking($fresh), 201);
@@ -182,7 +192,9 @@ class BookingController extends CrudController
         $estimatedTotal = (float) ($roomType->base_price ?: 0) * $nights;
         $estimatedTotal += (float) ($roomType->extra_bed_price ?: 0) * (int) ($data['extra_bed_count'] ?? 0) * $nights;
 
-        $booking = DB::transaction(function () use ($data, $request, $estimatedTotal) {
+        $bookingCurrency = Currency::query()->where('code', strtoupper((string) $roomType->currency))->first();
+
+        $booking = DB::transaction(function () use ($data, $request, $estimatedTotal, $bookingCurrency) {
             $booking = BookingInquiry::query()->create([
                 'customer_name' => $data['customer_name'],
                 'phone' => $data['phone'],
@@ -198,6 +210,12 @@ class BookingController extends CrudController
                 'extra_bed_needed' => $data['extra_bed_needed'] ?? false,
                 'extra_bed_count' => $data['extra_bed_count'] ?? 0,
                 'estimated_total' => $estimatedTotal,
+                'booking_currency_id' => $bookingCurrency?->id,
+                'exchange_rate' => $bookingCurrency ? 1 : null,
+                'subtotal' => $estimatedTotal,
+                'tax' => 0,
+                'discount' => 0,
+                'total' => $estimatedTotal,
                 'status' => 'new',
             ]);
 
