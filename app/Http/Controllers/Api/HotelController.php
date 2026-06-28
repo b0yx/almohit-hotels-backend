@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\RoomResource;
 use App\Models\Hotel;
+use App\Models\HotelPolicy;
 use App\Models\RoomType;
 use App\Services\AuditService;
 use App\Services\FaqService;
@@ -34,7 +35,30 @@ class HotelController extends CrudController
 
     public function show(int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess(request(), $id);
+        $request = request();
+        $user = $request->user();
+
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            $hotel = Hotel::query()
+                ->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
+                ->whereKey($id)
+                ->where('is_active', true)
+                ->where('publishing_status', 'published')
+                ->first();
+
+            if ($hotel) {
+                return response()->json(CompatResponse::hotel($hotel));
+            }
+
+            if (! $user) {
+                return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+            }
+
+            abort(404);
+        }
+
+        $this->authorizeStaffHotelAccess($request, $id);
+
         return parent::show($id);
     }
 
@@ -70,12 +94,13 @@ class HotelController extends CrudController
     public function destroy(int $id): JsonResponse
     {
         $this->authorizeStaffHotelAccess(request(), $id);
+
         return parent::destroy($id);
     }
 
     public function index(Request $request): JsonResponse
     {
-        $query = Hotel::query()->with(['amenities', 'images', 'faqs']);
+        $query = Hotel::query()->with(['amenities', 'images', 'policy', 'faqs']);
         $user = $request->user();
         $publicHotel = $request->attributes->get('public_hotel');
 
@@ -225,6 +250,8 @@ class HotelController extends CrudController
             ? ['sometimes', 'required', 'integer', 'min:1', 'max:5']
             : ['required', 'integer', 'min:1', 'max:5'];
 
+        $policyTimeRule = ['nullable', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'];
+
         return $request->validate([
             'name' => $requiredString(255),
             'name_ar' => ['nullable', 'string', 'max:255'],
@@ -250,6 +277,21 @@ class HotelController extends CrudController
             'amenity_ids' => ['sometimes', 'array'],
             'amenity_ids.*' => ['integer'],
             'policy' => ['sometimes', 'array'],
+            'policy.cancellation_policy' => ['nullable', 'string'],
+            'policy.children_policy' => ['nullable', 'string'],
+            'policy.pet_policy' => ['nullable', 'string'],
+            'policy.smoking_policy' => ['nullable', 'string'],
+            'policy.extra_bed_policy' => ['nullable', 'string'],
+            'policy.cancellation_policy_ar' => ['nullable', 'string'],
+            'policy.children_policy_ar' => ['nullable', 'string'],
+            'policy.pet_policy_ar' => ['nullable', 'string'],
+            'policy.smoking_policy_ar' => ['nullable', 'string'],
+            'policy.extra_bed_policy_ar' => ['nullable', 'string'],
+            'policy.important_notes' => ['nullable', 'string'],
+            'policy.check_in_from' => $policyTimeRule,
+            'policy.check_in_to' => $policyTimeRule,
+            'policy.check_out_from' => $policyTimeRule,
+            'policy.check_out_to' => $policyTimeRule,
             'social_media' => ['sometimes', 'array'],
             'contacts' => ['sometimes', 'array'],
             'cover_image_id' => ['sometimes', 'nullable', 'integer'],
@@ -304,8 +346,10 @@ class HotelController extends CrudController
     private function filterPolicyPayload(array $policy, bool $isUpdate = false): array
     {
         $allowed = [
-            'check_in_time',
-            'check_out_time',
+            'check_in_from',
+            'check_in_to',
+            'check_out_from',
+            'check_out_to',
             'cancellation_policy',
             'children_policy',
             'pet_policy',
@@ -319,10 +363,11 @@ class HotelController extends CrudController
             'important_notes',
         ];
 
-        $policy = LocalizedMapper::mapInputForSave(\App\Models\HotelPolicy::class, $policy, null, $isUpdate);
+        $policy = LocalizedMapper::mapInputForSave(HotelPolicy::class, $policy, null, $isUpdate);
+
         return collect($policy)->only($allowed)->map(function ($value, $key) {
-            if (in_array($key, ['check_in_time', 'check_out_time'], true)) {
-                return $value === '' || $value === null ? null : (string) $value;
+            if (in_array($key, ['check_in_from', 'check_in_to', 'check_out_from', 'check_out_to'], true)) {
+                return $this->normalizePolicyTime($value);
             }
 
             if (str_ends_with((string) $key, '_ar')) {
@@ -373,6 +418,17 @@ class HotelController extends CrudController
     private function blankString(mixed $value): string
     {
         return $value === null ? '' : (string) $value;
+    }
+
+    private function normalizePolicyTime(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $parts = explode(':', (string) $value);
+
+        return sprintf('%02d:%02d:00', (int) $parts[0], (int) $parts[1]);
     }
 
     private function syncCoverImage(Hotel $hotel, mixed $coverImageId): void
@@ -547,6 +603,7 @@ class HotelController extends CrudController
     private function pageSize(Request $request): int
     {
         $perPage = $request->query('per_page', $request->query('page_size', 20));
+
         return max(1, min(100, (int) $perPage));
     }
 }
