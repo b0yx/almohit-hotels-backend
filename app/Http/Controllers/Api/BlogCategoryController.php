@@ -21,7 +21,30 @@ class BlogCategoryController extends Controller
             $query->where('locale', $request->query('locale'));
         }
 
-        $categories = $query->orderBy('name')->paginate($this->pageSize($request));
+        if ($request->query('search')) {
+            $search = $request->query('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->query('sort')) {
+            $sortParam = $request->query('sort');
+            $direction = str_starts_with($sortParam, '-') ? 'desc' : 'asc';
+            $column = ltrim($sortParam, '-');
+
+            $allowed = ['name', 'slug', 'created_at', 'updated_at', 'id'];
+            if (in_array($column, $allowed, true)) {
+                $query->orderBy($column, $direction);
+            } else {
+                $query->orderBy('name');
+            }
+        } else {
+            $query->orderBy('name');
+        }
+
+        $categories = $query->paginate($this->pageSize($request));
 
         return response()->json([
             'count' => $categories->total(),
@@ -72,7 +95,9 @@ class BlogCategoryController extends Controller
 
     private function pageSize(Request $request): int
     {
-        return max(1, min(100, (int) $request->query('page_size', 20)));
+        $perPage = $request->query('per_page', $request->query('page_size', 20));
+
+        return max(1, min(100, (int) $perPage));
     }
 
     private function authorizeBlogAdmin(Request $request): void

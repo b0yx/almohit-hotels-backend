@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use App\Models\BlogPost;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 class BlogCategoryRequest extends FormRequest
@@ -11,6 +13,7 @@ class BlogCategoryRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
+
         return $user && ($user->isAdmin() || $user->isStaffRole());
     }
 
@@ -26,5 +29,25 @@ class BlogCategoryRequest extends FormRequest
             'locale' => [$required, 'string', Rule::in(BlogPost::LOCALES)],
             'is_active' => ['sometimes', 'boolean'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'slug.unique' => 'Slug already exists.',
+        ];
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        $errors = $validator->errors();
+        $firstMessage = $errors->first();
+
+        $response = response()->json([
+            'message' => $firstMessage,
+            'errors' => $errors->toArray(),
+        ], 422);
+
+        throw new HttpResponseException($response);
     }
 }

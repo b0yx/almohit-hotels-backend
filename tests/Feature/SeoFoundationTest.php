@@ -14,6 +14,7 @@ class SeoFoundationTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private string $adminToken;
 
     protected function setUp(): void

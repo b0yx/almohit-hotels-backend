@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\ApiToken;
 use Closure;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateApiToken
@@ -16,7 +17,7 @@ class AuthenticateApiToken
 
         if ($token) {
             if (str_contains($token, '|')) {
-                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                $pat = PersonalAccessToken::findToken($token);
                 if ($pat && $pat->tokenable && $pat->tokenable->is_active) {
                     $pat->forceFill(['last_used_at' => now()])->save();
                     $request->setUserResolver(fn () => $pat->tokenable);

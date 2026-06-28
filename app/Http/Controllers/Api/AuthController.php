@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
 use App\Models\EmailOTP;
-use App\Services\AuditService;
 use App\Models\PasswordResetOtp;
 use App\Models\User;
+use App\Services\AuditService;
 use App\Services\BrevoMailService;
 use App\Support\CompatResponse;
 use Illuminate\Cache\RateLimiter;
@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -68,6 +69,7 @@ class AuthController extends Controller
 
         if ($limiter->tooManyAttempts($otpKey, 5)) {
             $seconds = $limiter->availableIn($otpKey);
+
             return response()->json(['detail' => 'Too many attempts. Try again in '.$seconds.' seconds.', 'code' => 'otp_locked'], 429);
         }
 
@@ -76,6 +78,7 @@ class AuthController extends Controller
 
         if (! $user || ! $otp || $otp->expires_at->isPast() || ! Hash::check($data['code'], $otp->hashed_code)) {
             $limiter->hit($otpKey, 900);
+
             return response()->json(['detail' => 'Invalid verification code.', 'code' => 'invalid_otp'], 400);
         }
 
@@ -96,6 +99,7 @@ class AuthController extends Controller
 
         if ($limiter->tooManyAttempts($resendKey, 3)) {
             $seconds = $limiter->availableIn($resendKey);
+
             return response()->json(['detail' => 'Too many resend requests. Try again in '.$seconds.' seconds.', 'code' => 'resend_locked'], 429);
         }
 
@@ -209,7 +213,7 @@ class AuthController extends Controller
         if (preg_match('/^(?:Bearer|Token)\s+(.+)$/i', $header, $matches)) {
             $token = $matches[1];
             if (str_contains($token, '|')) {
-                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                $pat = PersonalAccessToken::findToken($token);
                 if ($pat) {
                     $pat->delete();
                 }
@@ -342,6 +346,7 @@ class AuthController extends Controller
 
         if (! Hash::check($data['code'], $otp->otp_hash)) {
             $otp->increment('attempts');
+
             return response()->json(['detail' => 'Invalid or expired OTP.', 'code' => 'invalid_otp'], 400);
         }
 
