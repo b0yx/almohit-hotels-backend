@@ -236,8 +236,10 @@ components:
         smoking_policy_ar: { type: string, nullable: true }
         extra_bed_policy: { type: string, nullable: true }
         extra_bed_policy_ar: { type: string, nullable: true }
-        check_in_time: { type: string, nullable: true }
-        check_out_time: { type: string, nullable: true }
+        check_in_from: { type: string, nullable: true, description: Earliest allowed check-in time. }
+        check_in_to: { type: string, nullable: true, description: Latest allowed check-in time. }
+        check_out_from: { type: string, nullable: true, description: Earliest allowed check-out time. }
+        check_out_to: { type: string, nullable: true, description: Latest allowed check-out time. }
 
     RoomType:
       type: object

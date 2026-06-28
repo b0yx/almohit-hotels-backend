@@ -176,8 +176,10 @@ class OpenApiSpec
             new OA\Property(property: "smoking_policy_ar", type: "string", nullable: true),
             new OA\Property(property: "extra_bed_policy", type: "string", nullable: true),
             new OA\Property(property: "extra_bed_policy_ar", type: "string", nullable: true),
-            new OA\Property(property: "check_in_time", type: "string", nullable: true),
-            new OA\Property(property: "check_out_time", type: "string", nullable: true),
+            new OA\Property(property: "check_in_from", type: "string", nullable: true, description: "Earliest allowed check-in time."),
+            new OA\Property(property: "check_in_to", type: "string", nullable: true, description: "Latest allowed check-in time."),
+            new OA\Property(property: "check_out_from", type: "string", nullable: true, description: "Earliest allowed check-out time."),
+            new OA\Property(property: "check_out_to", type: "string", nullable: true, description: "Latest allowed check-out time."),
         ]
     )]
     private $HotelPolicy;

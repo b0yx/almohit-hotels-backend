@@ -93,6 +93,7 @@ class CompatResponse
             'created_at' => optional($rate->created_at)->toJSON(),
         ];
     }
+
     public static function user(User $user): array
     {
         return [
@@ -146,6 +147,7 @@ class CompatResponse
                     $item['sort_order'] = $f->sort_order;
                     $item['is_active'] = (bool) $f->is_active;
                 }
+
                 return $item;
             })->all();
         }
@@ -208,7 +210,22 @@ class CompatResponse
 
     public static function genericPolicy(HotelPolicy $policy): array
     {
-        return LocalizedMapper::mapOutput($policy, $policy->toArray());
+        $data = LocalizedMapper::mapOutput($policy, $policy->toArray());
+
+        foreach (['check_in_from', 'check_in_to', 'check_out_from', 'check_out_to'] as $field) {
+            $data[$field] = self::formatPolicyTime($data[$field] ?? null);
+        }
+
+        return $data;
+    }
+
+    private static function formatPolicyTime(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return substr((string) $value, 0, 5);
     }
 
     public static function computeReadinessErrors(Hotel $hotel): array
@@ -226,6 +243,7 @@ class CompatResponse
         if (empty($hotel->country) || empty($hotel->city)) {
             $errors[] = 'Country and city are required.';
         }
+
         return $errors;
     }
 
