@@ -74,12 +74,17 @@ class HotelController extends CrudController
         $user = $request->user();
 
         if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
-            $hotel = Hotel::query()
+            $query = Hotel::query()
                 ->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
                 ->whereKey($id)
                 ->where('is_active', true)
-                ->where('publishing_status', 'published')
-                ->first();
+                ->where('publishing_status', 'published');
+
+            if ($user) {
+                $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+            }
+
+            $hotel = $query->first();
 
             if ($hotel) {
                 return response()->json(CompatResponse::hotel($hotel));
@@ -90,7 +95,12 @@ class HotelController extends CrudController
 
         $this->authorizeStaffHotelAccess($request, $id);
 
-        return parent::show($id);
+        $query = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
+        if ($user) {
+            $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+        }
+
+        return response()->json(CompatResponse::hotel($query->findOrFail($id)));
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -151,6 +161,10 @@ class HotelController extends CrudController
             if ($request->query($filter)) {
                 $query->where($filter, $request->query($filter));
             }
+        }
+
+        if ($user) {
+            $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
         }
 
         return response()->json(CompatResponse::page($query->latest('id')->paginate($this->pageSize($request))));

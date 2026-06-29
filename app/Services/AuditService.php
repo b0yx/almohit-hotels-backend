@@ -7,6 +7,7 @@ use App\Models\AvailabilityBlock;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
 use App\Models\Currency;
+use App\Models\Favorite;
 use App\Models\ExchangeRate;
 use App\Models\Hotel;
 use App\Models\HotelAmenity;
@@ -37,6 +38,7 @@ class AuditService
         ContactMessage::class => 'contact_message',
         Currency::class => 'currency',
         ExchangeRate::class => 'exchange_rate',
+        Favorite::class => 'favorite',
         HotelImage::class => 'hotel_image',
         RoomTypeImage::class => 'room_type_image',
         ServiceImage::class => 'service_image',

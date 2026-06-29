@@ -120,6 +120,7 @@ class OpenApiSpec
             new OA\Property(property: 'is_active', type: 'boolean', nullable: false),
             new OA\Property(property: 'publishing_status', type: 'string', nullable: false),
             new OA\Property(property: 'published_at', type: 'string', nullable: true),
+            new OA\Property(property: 'is_favorite', type: 'boolean', nullable: false, default: false),
             new OA\Property(property: 'owner', type: 'integer', nullable: true),
             new OA\Property(property: 'readiness_errors', type: 'array', nullable: false, items: new OA\Items(type: 'string')),
             new OA\Property(property: 'is_ready_to_publish', type: 'boolean', nullable: false),
@@ -287,6 +288,20 @@ class OpenApiSpec
         ]
     )]
     private $ReviewSummary;
+
+    // ─── Schema: Favorite ────────────────────────────────
+    #[OA\Schema(
+        schema: 'Favorite',
+        type: 'object',
+        properties: [
+            new OA\Property(property: 'id', type: 'integer', nullable: false),
+            new OA\Property(property: 'user_id', type: 'integer', nullable: false),
+            new OA\Property(property: 'hotel_id', type: 'integer', nullable: false),
+            new OA\Property(property: 'hotel', ref: '#/components/schemas/Hotel', nullable: true),
+            new OA\Property(property: 'created_at', type: 'string', nullable: false),
+        ]
+    )]
+    private $Favorite;
 
     // ─── Schema: ServiceCategory ────────────────────────────────
     #[OA\Schema(
@@ -2216,4 +2231,86 @@ Admin: Any booking.
         ]
     )]
     public function route_86() {}
+
+    // ─── Endpoint: Get /api/favorites/ ──────────────────────────
+    #[OA\Get(
+        path: '/api/favorites/',
+        summary: 'List authenticated user\'s favorite hotels',
+        description: '',
+        tags: ['Favorites'],
+        security: [['BearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page_size', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: '200',
+                description: 'Paginated list of favorite hotels'
+            ),
+            new OA\Response(
+                response: '401',
+                description: 'Not authenticated'
+            ),
+        ]
+    )]
+    public function route_87() {}
+
+    // ─── Endpoint: Post /api/favorites/{hotel}/ ──────────────────────────
+    #[OA\Post(
+        path: '/api/favorites/{hotel}/',
+        summary: 'Add a hotel to favorites',
+        description: '',
+        tags: ['Favorites'],
+        security: [['BearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hotel', in: 'path', required: true, description: 'Hotel ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: '201',
+                description: 'Hotel added to favorites'
+            ),
+            new OA\Response(
+                response: '401',
+                description: 'Not authenticated'
+            ),
+            new OA\Response(
+                response: '404',
+                description: 'Hotel not found'
+            ),
+            new OA\Response(
+                response: '409',
+                description: 'Hotel already in favorites'
+            ),
+        ]
+    )]
+    public function route_88() {}
+
+    // ─── Endpoint: Delete /api/favorites/{hotel}/ ──────────────────────────
+    #[OA\Delete(
+        path: '/api/favorites/{hotel}/',
+        summary: 'Remove a hotel from favorites',
+        description: '',
+        tags: ['Favorites'],
+        security: [['BearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hotel', in: 'path', required: true, description: 'Hotel ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: '204',
+                description: 'Favorite removed'
+            ),
+            new OA\Response(
+                response: '401',
+                description: 'Not authenticated'
+            ),
+            new OA\Response(
+                response: '404',
+                description: 'Favorite not found'
+            ),
+        ]
+    )]
+    public function route_89() {}
 }
