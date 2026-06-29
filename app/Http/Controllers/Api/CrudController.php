@@ -39,6 +39,7 @@ class CrudController extends Controller
             AuditLog::class => self::ADMIN_ONLY,
             Hotel::class => self::STAFF_OR_ADMIN,
             HotelAmenity::class => self::READ_PUBLIC,
+            HotelService::class => self::READ_PUBLIC,
             ServiceCategory::class => self::READ_PUBLIC,
             ContactMessage::class => self::STAFF_OR_ADMIN,
             BookingInquiry::class => self::STAFF_OR_ADMIN,
@@ -98,6 +99,10 @@ class CrudController extends Controller
 
         if ($this->modelClass === ContactMessage::class && $user && $user->isStaffRole() && ! $user->isAdmin()) {
             $query->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id));
+        }
+
+        if ($this->modelClass === HotelService::class && ! $user) {
+            $this->applyPublicServiceVisibility($query);
         }
 
         $this->applyFilters($request, $query);
@@ -203,6 +208,15 @@ class CrudController extends Controller
         };
     }
 
+    protected function applyPublicServiceVisibility($query): void
+    {
+        $query
+            ->where('is_active', true)
+            ->whereHas('hotel', fn ($q) => $q
+                ->where('is_active', true)
+                ->where('publishing_status', 'published'));
+    }
+
     public function show(int $id): JsonResponse
     {
         $request = request();
@@ -211,6 +225,11 @@ class CrudController extends Controller
         }
 
         $query = $this->modelClass::query();
+        $user = $request->user();
+        if ($this->modelClass === HotelService::class && ! $user) {
+            $this->applyPublicServiceVisibility($query);
+        }
+
         foreach ($this->eagerLoads() as $relation) {
             $query->with($relation);
         }
