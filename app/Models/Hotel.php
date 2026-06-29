@@ -46,6 +46,11 @@ class Hotel extends Model
         return $this->belongsToMany(User::class, 'hotel_user_assignments')->withTimestamps();
     }
 
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
     public function images(): HasMany
     {
         return $this->hasMany(HotelImage::class);

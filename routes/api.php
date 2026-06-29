@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CrudController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\ExchangeRateController;
+use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\HotelController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\ReviewController;
@@ -146,6 +147,10 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     imageRoutes('service-images');
     Route::apiResource('audit-logs', CrudController::class)->parameters(['audit-logs' => 'id'])->only(['index', 'show']);
     Route::apiResource('contact-messages', CrudController::class)->parameters(['contact-messages' => 'id']);
+
+    Route::get('/favorites/', [FavoriteController::class, 'index']);
+    Route::post('/favorites/{hotel}/', [FavoriteController::class, 'store']);
+    Route::delete('/favorites/{hotel}/', [FavoriteController::class, 'destroy']);
 });
 
 app()->bind(CrudController::class, function ($app, array $params = []) {
