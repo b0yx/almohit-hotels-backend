@@ -51,6 +51,16 @@ class User extends Authenticatable
         return $this->belongsToMany(Hotel::class, 'hotel_user_assignments')->withTimestamps();
     }
 
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function favoriteHotels(): BelongsToMany
+    {
+        return $this->belongsToMany(Hotel::class, 'favorites')->withTimestamps();
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN && (bool) $this->is_active;

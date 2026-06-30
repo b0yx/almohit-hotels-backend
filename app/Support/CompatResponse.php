@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\BookingInquiry;
 use App\Models\Currency;
 use App\Models\ExchangeRate;
+use App\Models\Favorite;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
 use App\Models\HotelService;
@@ -43,6 +44,7 @@ class CompatResponse
             $model instanceof HotelService => self::service($model),
             $model instanceof BookingInquiry => self::booking($model),
             $model instanceof Review => self::review($model),
+            $model instanceof Favorite => self::favorite($model),
             default => self::generic($model),
         };
     }
@@ -199,6 +201,7 @@ class CompatResponse
             'owner' => $hotel->owner_id,
             'readiness_errors' => $readinessErrors,
             'is_ready_to_publish' => empty($readinessErrors),
+            'is_favorite' => (bool) ($hotel->is_favorite ?? false),
             'latitude' => $hotel->latitude,
             'longitude' => $hotel->longitude,
             'created_at' => optional($hotel->created_at)->toJSON(),
@@ -298,6 +301,22 @@ class CompatResponse
     public static function review(Review $review): array
     {
         return self::genericAlias($review, ['property' => 'hotel_id']);
+    }
+
+    public static function favorite(Favorite $favorite): array
+    {
+        $data = [
+            'id' => $favorite->id,
+            'user_id' => $favorite->user_id,
+            'hotel_id' => $favorite->hotel_id,
+            'created_at' => optional($favorite->created_at)->toJSON(),
+        ];
+
+        if ($favorite->relationLoaded('hotel')) {
+            $data['hotel'] = self::hotel($favorite->hotel);
+        }
+
+        return $data;
     }
 
     public static function generic(Model $model): array

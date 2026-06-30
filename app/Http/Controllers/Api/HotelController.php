@@ -74,12 +74,17 @@ class HotelController extends CrudController
         $user = $request->user();
 
         if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
-            $hotel = Hotel::query()
+            $query = Hotel::query()
                 ->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
                 ->whereKey($id)
                 ->where('is_active', true)
-                ->where('publishing_status', 'published')
-                ->first();
+                ->where('publishing_status', 'published');
+
+            if ($user) {
+                $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+            }
+
+            $hotel = $query->first();
 
             if ($hotel) {
                 return response()->json(CompatResponse::hotel($hotel));
@@ -90,7 +95,12 @@ class HotelController extends CrudController
 
         $this->authorizeStaffHotelAccess($request, $id);
 
-        return parent::show($id);
+        $query = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
+        if ($user) {
+            $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+        }
+
+        return response()->json(CompatResponse::hotel($query->findOrFail($id)));
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -151,6 +161,10 @@ class HotelController extends CrudController
             if ($request->query($filter)) {
                 $query->where($filter, $request->query($filter));
             }
+        }
+
+        if ($user) {
+            $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
         }
 
         return response()->json(CompatResponse::page($query->latest('id')->paginate($this->pageSize($request))));
@@ -561,6 +575,7 @@ class HotelController extends CrudController
 
         $rooms = RoomType::where('hotel_id', $id)
             ->where('is_active', true)
+            ->with(['images' => fn ($q) => $q->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order')])
             ->get()
             ->map(fn (RoomType $room) => $this->mapGuestRoomSearchRow($room));
 
@@ -569,6 +584,21 @@ class HotelController extends CrudController
 
     private function mapGuestRoomSearchRow(RoomType $room): array
     {
+        $coverImageUrl = null;
+        if ($room->relationLoaded('images')) {
+            $activeImages = $room->images->where('is_active', true);
+            $coverImage = $activeImages->firstWhere('is_cover', true)
+                ?? $activeImages->sortBy('display_order')->first();
+            $coverImageUrl = $coverImage?->image;
+        } else {
+            $coverImage = $room->images()
+                ->where('is_active', true)
+                ->orderByDesc('is_cover')
+                ->orderBy('display_order')
+                ->first();
+            $coverImageUrl = $coverImage?->image;
+        }
+
         $data = [
             'room_type_id' => $room->id,
             'name' => $room->name,
@@ -583,7 +613,7 @@ class HotelController extends CrudController
             'extra_bed_allowed' => (bool) $room->extra_bed_allowed,
             'extra_bed_price' => (string) $room->extra_bed_price,
             'breakfast_included' => (bool) $room->breakfast_included,
-            'cover_image_url' => null,
+            'cover_image_url' => $coverImageUrl,
         ];
 
         $data = LocalizedMapper::mapOutput($room, $data);
@@ -598,7 +628,11 @@ class HotelController extends CrudController
             return $error;
         }
 
-        $hotel = Hotel::query()->with(['roomTypes' => fn ($q) => $q->where('is_active', true)])->findOrFail($id);
+        $hotel = Hotel::query()->with([
+            'roomTypes' => fn ($q) => $q->where('is_active', true)->with([
+                'images' => fn ($q2) => $q2->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order'),
+            ]),
+        ])->findOrFail($id);
         $units = $hotel->roomTypes->map(function (RoomType $room) {
             $searchRow = $this->mapGuestRoomSearchRow($room);
 
