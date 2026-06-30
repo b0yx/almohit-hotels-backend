@@ -3,32 +3,32 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\BlogMediaRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class BlogMediaController extends Controller
 {
-    public function store(Request $request): JsonResponse
+    /**
+     * Upload a blog media file (image or video).
+     *
+     * Authorization and validation are handled by BlogMediaRequest.
+     * The request resolves `file` (preferred) or `image` fields,
+     * validates MIME types and per-type size limits, and derives a
+     * safe extension from server-side MIME detection.
+     */
+    public function store(BlogMediaRequest $request): JsonResponse
     {
-        $user = $request->user();
-        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
-            abort(403, 'You do not have permission to perform this action.');
-        }
+        $upload   = $request->resolvedUpload();
+        $filename = Str::uuid()->toString().'.'.$request->safeExtension();
 
-        $request->validate([
-            'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:10240'],
-        ]);
-
-        $file = $request->file('image');
-        $extension = $file->getClientOriginalExtension() ?: 'jpg';
-        $filename = Str::uuid()->toString().'.'.$extension;
-        $storedPath = $file->storeAs('blog', $filename, 'public');
+        $storedPath = $upload->storeAs('blog', $filename, 'public');
 
         return response()->json([
-            'path' => $storedPath,
+            'path'           => $storedPath,
             'featured_image' => '/storage/'.$storedPath,
-            'url' => url('/storage/'.$storedPath),
+            'url'            => url('/storage/'.$storedPath),
+            'type'           => $request->mediaType(),
         ], 201);
     }
 }
