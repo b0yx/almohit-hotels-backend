@@ -3,7 +3,10 @@
 namespace App\Support;
 
 use App\Models\BookingInquiry;
+use App\Models\Currency;
+use App\Models\ExchangeRate;
 use App\Models\Faq;
+use App\Models\Favorite;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
 use App\Models\HotelService;
@@ -35,11 +38,14 @@ class CompatResponse
     {
         return match (true) {
             $model instanceof User => self::user($model),
+            $model instanceof Currency => self::currency($model),
+            $model instanceof ExchangeRate => self::exchangeRate($model),
             $model instanceof Hotel => self::hotel($model),
             $model instanceof RoomType => self::roomType($model),
             $model instanceof HotelService => self::service($model),
             $model instanceof BookingInquiry => self::booking($model),
             $model instanceof Review => self::review($model),
+            $model instanceof Favorite => self::favorite($model),
             default => self::generic($model),
         };
     }
@@ -51,6 +57,43 @@ class CompatResponse
             'next' => $page->nextPageUrl(),
             'previous' => $page->previousPageUrl(),
             'results' => $page->getCollection()->map(fn (Model $model) => self::item($model))->values(),
+        ];
+    }
+
+    public static function currency(Currency $currency): array
+    {
+        return [
+            'id' => $currency->id,
+            'code' => $currency->code,
+            'name' => $currency->name,
+            'symbol' => $currency->symbol,
+            'symbol_position' => $currency->symbol_position,
+            'decimal_places' => $currency->decimal_places,
+            'thousand_separator' => $currency->thousand_separator,
+            'decimal_separator' => $currency->decimal_separator,
+            'is_default' => (bool) $currency->is_default,
+            'is_active' => (bool) $currency->is_active,
+            'created_at' => optional($currency->created_at)->toJSON(),
+            'updated_at' => optional($currency->updated_at)->toJSON(),
+        ];
+    }
+
+    public static function exchangeRate(ExchangeRate $rate): array
+    {
+        return [
+            'id' => $rate->id,
+            'from_currency_id' => $rate->from_currency_id,
+            'from_currency' => $rate->relationLoaded('fromCurrency') && $rate->fromCurrency ? self::currency($rate->fromCurrency) : null,
+            'to_currency_id' => $rate->to_currency_id,
+            'to_currency' => $rate->relationLoaded('toCurrency') && $rate->toCurrency ? self::currency($rate->toCurrency) : null,
+            'exchange_rate' => (string) $rate->exchange_rate,
+            'effective_from' => optional($rate->effective_from)->toJSON(),
+            'effective_to' => optional($rate->effective_to)->toJSON(),
+            'source' => $rate->source,
+            'notes' => $rate->notes,
+            'is_manual' => (bool) $rate->is_manual,
+            'created_by' => $rate->created_by,
+            'created_at' => optional($rate->created_at)->toJSON(),
         ];
     }
 
@@ -93,9 +136,10 @@ class CompatResponse
         $readinessErrors = self::computeReadinessErrors($hotel);
         $faqs = self::hotelFaqs($hotel);
 
-        return [
+        $data = [
             'id' => $hotel->id,
             'name' => $hotel->name,
+            'name_ar' => $hotel->name_ar,
             'slug' => $hotel->slug,
             'subdomain' => $hotel->subdomain,
             'property_type' => $hotel->property_type,
@@ -107,7 +151,13 @@ class CompatResponse
             'website' => $hotel->website,
             'stars' => $hotel->stars,
             'description' => $hotel->description ?? '',
+            'description_ar' => $hotel->description_ar,
             'short_description' => $hotel->short_description,
+            'short_description_ar' => $hotel->short_description_ar,
+            'meta_title' => $hotel->meta_title,
+            'meta_description' => $hotel->meta_description,
+            'meta_title_ar' => $hotel->meta_title_ar,
+            'meta_description_ar' => $hotel->meta_description_ar,
             'timezone' => $hotel->timezone,
             'languages_spoken' => $hotel->languages_spoken ?: [],
             'parking_available' => (bool) $hotel->parking_available,
@@ -134,16 +184,34 @@ class CompatResponse
             'owner' => $hotel->owner_id,
             'readiness_errors' => $readinessErrors,
             'is_ready_to_publish' => empty($readinessErrors),
+            'is_favorite' => (bool) ($hotel->is_favorite ?? false),
             'latitude' => $hotel->latitude,
             'longitude' => $hotel->longitude,
             'created_at' => optional($hotel->created_at)->toJSON(),
             'updated_at' => optional($hotel->updated_at)->toJSON(),
         ];
+
+        return LocalizedMapper::mapOutput($hotel, $data);
     }
 
     public static function genericPolicy(HotelPolicy $policy): array
     {
-        return $policy->toArray();
+        $data = LocalizedMapper::mapOutput($policy, $policy->toArray());
+
+        foreach (['check_in_from', 'check_in_to', 'check_out_from', 'check_out_to'] as $field) {
+            $data[$field] = self::formatPolicyTime($data[$field] ?? null);
+        }
+
+        return $data;
+    }
+
+    private static function formatPolicyTime(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return substr((string) $value, 0, 5);
     }
 
     private static function hotelFaqs(Hotel $hotel): array
@@ -251,6 +319,7 @@ class CompatResponse
         if (empty($hotel->country) || empty($hotel->city)) {
             $errors[] = 'Country and city are required.';
         }
+
         return $errors;
     }
 
@@ -262,17 +331,19 @@ class CompatResponse
             $coverImageUrl = $cover?->image;
         }
 
-        return array_merge(self::genericAlias($room, ['property' => 'hotel_id']), [
+        $data = array_merge(self::genericAlias($room, ['property' => 'hotel_id']), [
             'cover_image_url' => $coverImageUrl,
             'images' => $room->relationLoaded('images') ? self::sortGalleryImages($room->images)->map(fn ($i) => self::generic($i))->values() : [],
             'prices' => $room->relationLoaded('prices') ? $room->prices->map(fn ($p) => self::generic($p))->values() : [],
             'amenity_details' => [],
         ]);
+
+        return LocalizedMapper::mapOutput($room, $data);
     }
 
     public static function service(HotelService $service): array
     {
-        return array_merge(self::genericAlias($service, [
+        $data = array_merge(self::genericAlias($service, [
             'property' => 'hotel_id',
             'category' => 'service_category_id',
         ]), [
@@ -281,6 +352,8 @@ class CompatResponse
             'cover_image_url' => null,
             'images' => [],
         ]);
+
+        return LocalizedMapper::mapOutput($service, $data);
     }
 
     public static function booking(BookingInquiry $booking): array
@@ -303,6 +376,22 @@ class CompatResponse
         return self::genericAlias($review, ['property' => 'hotel_id']);
     }
 
+    public static function favorite(Favorite $favorite): array
+    {
+        $data = [
+            'id' => $favorite->id,
+            'user_id' => $favorite->user_id,
+            'hotel_id' => $favorite->hotel_id,
+            'created_at' => optional($favorite->created_at)->toJSON(),
+        ];
+
+        if ($favorite->relationLoaded('hotel')) {
+            $data['hotel'] = self::hotel($favorite->hotel);
+        }
+
+        return $data;
+    }
+
     public static function generic(Model $model): array
     {
         $data = collect($model->toArray())->except(['hotel_id', 'service_category_id', 'hotel_service_id'])->all();
@@ -311,7 +400,7 @@ class CompatResponse
             $data['icon_url'] = $data['icon'];
         }
 
-        return $data;
+        return LocalizedMapper::mapOutput($model, $data);
     }
 
     public static function genericAlias(Model $model, array $aliases): array
@@ -324,6 +413,6 @@ class CompatResponse
             }
         }
 
-        return $data;
+        return LocalizedMapper::mapOutput($model, $data);
     }
 }

@@ -1,8 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BlogCategoryController;
+use App\Http\Controllers\Api\BlogMediaController;
+use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CrudController;
+use App\Http\Controllers\Api\CurrencyController;
+use App\Http\Controllers\Api\ExchangeRateController;
+use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\HotelController;
 use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\ReviewController;
@@ -16,39 +22,40 @@ use App\Models\RoomPrice;
 use App\Models\RoomType;
 use App\Models\ServiceCategory;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 if (! function_exists('imageRoutes')) {
-function imageRoutes(string $type): void
-{
-    $c = ImageUploadController::class;
-    Route::prefix($type)->group(function () use ($c) {
-        Route::get('/', [$c, 'index']);
-        Route::post('/', [$c, 'store']);
-        Route::get('{id}', [$c, 'show'])->whereNumber('id');
-        Route::patch('{id}', [$c, 'update'])->whereNumber('id');
-        Route::delete('{id}', [$c, 'destroy'])->whereNumber('id');
-    });
-}
+    function imageRoutes(string $type): void
+    {
+        $c = ImageUploadController::class;
+        Route::prefix($type)->group(function () use ($c) {
+            Route::get('/', [$c, 'index']);
+            Route::post('/', [$c, 'store']);
+            Route::get('{id}', [$c, 'show'])->whereNumber('id');
+            Route::patch('{id}', [$c, 'update'])->whereNumber('id');
+            Route::delete('{id}', [$c, 'destroy'])->whereNumber('id');
+        });
+    }
 }
 
 Route::middleware(['tenant.context', 'api.token'])->group(function () {
-    Route::get('/health/', function (): \Illuminate\Http\JsonResponse {
+    Route::get('/health/', function (): JsonResponse {
         $checks = [];
 
         try {
             DB::connection()->getPdo();
             $checks['database'] = 'ok';
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $checks['database'] = 'error: '.$e->getMessage();
         }
 
         try {
             Cache::store(config('cache.default'))->get('health-check');
             $checks['cache'] = 'ok';
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $checks['cache'] = 'error: '.$e->getMessage();
         }
 
@@ -62,6 +69,9 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         ], $allOk ? 200 : 503);
     });
     Route::get('/public/hotel-context/', [HotelController::class, 'publicContext']);
+    Route::get('/blog/posts/', [BlogPostController::class, 'publicIndex']);
+    Route::get('/blog/posts/{slug}/', [BlogPostController::class, 'publicShow']);
+    Route::apiResource('currencies', CurrencyController::class)->parameters(['currencies' => 'id'])->only(['index', 'show']);
 
     Route::prefix('auth')->group(function () {
         Route::post('/signup/', [AuthController::class, 'signup'])->middleware('throttle:5,30');
@@ -99,6 +109,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{id}/rooms/search/', [HotelController::class, 'roomsSearch']);
     Route::get('/properties/{id}/availability/', [HotelController::class, 'availability']);
     Route::get('/properties/{id}/rates/', [HotelController::class, 'rates']);
+    Route::get('/properties/{property}/rooms', [HotelController::class, 'publicRooms']);
     Route::match(['get', 'post'], '/properties/{property}/reviews/', [ReviewController::class, 'propertyReviews']);
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
 
@@ -109,6 +120,18 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::post('/bookings/{id}/cancel/', [BookingController::class, 'cancel']);
 
     Route::apiResource('reviews', ReviewController::class)->parameters(['reviews' => 'id'])->only(['index', 'show', 'update', 'destroy']);
+
+    Route::prefix('admin/finance')->middleware('role:admin')->group(function () {
+        Route::apiResource('currencies', CurrencyController::class)->parameters(['currencies' => 'id'])->names('admin.finance.currencies');
+        Route::apiResource('exchange-rates', ExchangeRateController::class)->parameters(['exchange-rates' => 'id'])->names('admin.finance.exchange-rates');
+    });
+
+    Route::prefix('admin/blog')->group(function () {
+        Route::post('media', [BlogMediaController::class, 'store']);
+        Route::post('slug', [BlogPostController::class, 'generateSlug']);
+        Route::apiResource('categories', BlogCategoryController::class)->parameters(['categories' => 'category']);
+        Route::apiResource('posts', BlogPostController::class)->parameters(['posts' => 'post']);
+    });
 
     Route::apiResource('property-amenities', CrudController::class)->parameters(['property-amenities' => 'id']);
     imageRoutes('property-images');
@@ -125,6 +148,10 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     imageRoutes('service-images');
     Route::apiResource('audit-logs', CrudController::class)->parameters(['audit-logs' => 'id'])->only(['index', 'show']);
     Route::apiResource('contact-messages', CrudController::class)->parameters(['contact-messages' => 'id']);
+
+    Route::get('/favorites/', [FavoriteController::class, 'index']);
+    Route::post('/favorites/{hotel}/', [FavoriteController::class, 'store']);
+    Route::delete('/favorites/{hotel}/', [FavoriteController::class, 'destroy']);
 });
 
 app()->bind(CrudController::class, function ($app, array $params = []) {

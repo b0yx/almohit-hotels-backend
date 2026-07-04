@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\RoomResource;
 use App\Models\Hotel;
+use App\Models\HotelPolicy;
 use App\Models\RoomType;
 use App\Services\AuditService;
 use App\Services\FaqService;
 use App\Support\CompatResponse;
+use App\Support\LocalizedMapper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -30,30 +33,100 @@ class HotelController extends CrudController
         }
     }
 
+    private function staffOrAdminError(Request $request, string $action, ?int $hotelId = null): ?JsonResponse
+    {
+        if ($error = $this->checkAuthorization($request, $action, $hotelId)) {
+            return $error;
+        }
+
+        if ($hotelId !== null) {
+            $this->authorizeStaffHotelAccess($request, $hotelId);
+        }
+
+        return null;
+    }
+
+    private function publicAccessError(Request $request, int $hotelId): ?JsonResponse
+    {
+        $user = $request->user();
+        if ($user && ($user->isAdmin() || $user->isStaffRole())) {
+            $this->authorizeStaffHotelAccess($request, $hotelId);
+
+            return null;
+        }
+
+        $isVisible = Hotel::query()
+            ->whereKey($hotelId)
+            ->where('is_active', true)
+            ->where('publishing_status', 'published')
+            ->exists();
+
+        if (! $isVisible) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
+        return null;
+    }
+
     public function show(int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess(request(), $id);
-        return parent::show($id);
+        $request = request();
+        $user = $request->user();
+
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            $query = Hotel::query()
+                ->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
+                ->whereKey($id)
+                ->where('is_active', true)
+                ->where('publishing_status', 'published');
+
+            if ($user) {
+                $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+            }
+
+            $hotel = $query->first();
+
+            if ($hotel) {
+                return response()->json(CompatResponse::hotel($hotel));
+            }
+
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
+        $this->authorizeStaffHotelAccess($request, $id);
+
+        $query = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
+        if ($user) {
+            $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+        }
+
+        return response()->json(CompatResponse::hotel($query->findOrFail($id)));
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
 
         $validated = $this->validateHotelPayload($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
         $data = $this->normalizeInput($validated);
+        $data = LocalizedMapper::mapInputForSave(Hotel::class, $data, null, true);
         if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
             $data['video_url'] = '';
         }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
+        $faqsData = array_key_exists('faqs', $data) ? $data['faqs'] : null;
+        unset($data['faqs']);
         $changes = AuditService::changes($hotel, $data);
         $hotel->fill($data)->save();
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
         $this->syncCoverImage($hotel, $coverImageId);
+        FaqService::syncFaqs($hotel, $faqsData);
 
         $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
         AuditService::log('updated', 'hotel', $fresh, $changes);
@@ -63,13 +136,16 @@ class HotelController extends CrudController
 
     public function destroy(int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess(request(), $id);
+        if ($error = $this->staffOrAdminError(request(), 'destroy', $id)) {
+            return $error;
+        }
+
         return parent::destroy($id);
     }
 
     public function index(Request $request): JsonResponse
     {
-        $query = Hotel::query()->with(['amenities', 'images', 'faqs']);
+        $query = Hotel::query()->with(['amenities', 'images', 'policy', 'faqs']);
         $user = $request->user();
         $publicHotel = $request->attributes->get('public_hotel');
 
@@ -87,26 +163,38 @@ class HotelController extends CrudController
             }
         }
 
-        return response()->json(CompatResponse::page($query->latest('id')->paginate(20)));
+        if ($user) {
+            $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
+        }
+
+        return response()->json(CompatResponse::page($query->latest('id')->paginate($this->pageSize($request))));
     }
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->checkAuthorization($request, 'store')) {
+            return $error;
+        }
+
         $validated = $this->validateHotelPayload($request);
         $data = $this->normalizeInput($validated);
+        $data = LocalizedMapper::mapInputForSave(Hotel::class, $data, null, false);
         if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
             $data['video_url'] = '';
         }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
         $nested = $this->extractNestedHotelPayload($data);
-        $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? Str::random(8));
+        $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? $data['name_ar'] ?? Str::random(8));
         $data['publishing_status'] = $data['publishing_status'] ?? 'draft';
 
+        $faqsData = array_key_exists('faqs', $data) ? $data['faqs'] : null;
+        unset($data['faqs']);
         $hotel = Hotel::query()->create($data);
         $this->syncManyToMany($hotel, $request);
         $this->syncNestedHotelRelations($hotel, $nested);
         $this->syncCoverImage($hotel, $coverImageId);
+        FaqService::syncFaqs($hotel, $faqsData);
 
         $fresh = $hotel->fresh(['amenities', 'images', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
         AuditService::log('created', 'hotel', $fresh);
@@ -116,7 +204,10 @@ class HotelController extends CrudController
 
     public function publish(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
@@ -129,7 +220,10 @@ class HotelController extends CrudController
 
     public function unpublish(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
@@ -142,7 +236,10 @@ class HotelController extends CrudController
 
     public function archive(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
@@ -155,7 +252,10 @@ class HotelController extends CrudController
 
     public function unarchive(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
@@ -168,7 +268,10 @@ class HotelController extends CrudController
 
     public function readiness(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'show', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with(['images', 'roomTypes'])->findOrFail($id);
         $errors = CompatResponse::computeReadinessErrors($hotel);
 
@@ -187,7 +290,10 @@ class HotelController extends CrudController
 
     public function setupStatus(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'show', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with('setupStatus')->findOrFail($id);
         $setup = $hotel->setupStatus;
 
@@ -215,14 +321,23 @@ class HotelController extends CrudController
             ? ['sometimes', 'required', 'integer', 'min:1', 'max:5']
             : ['required', 'integer', 'min:1', 'max:5'];
 
+        $policyTimeRule = ['nullable', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'];
+
         return $request->validate([
             'name' => $requiredString(255),
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'property_type' => $requiredString(20),
             'country' => $requiredString(100),
             'city' => $requiredString(100),
             'address' => $requiredString(500),
             'stars' => $requiredStars,
             'description' => ['nullable', 'string'],
+            'description_ar' => ['nullable', 'string'],
+            'short_description_ar' => ['nullable', 'string', 'max:300'],
+            'meta_title' => ['nullable', 'string', 'max:60'],
+            'meta_description' => ['nullable', 'string', 'max:160'],
+            'meta_title_ar' => ['nullable', 'string', 'max:60'],
+            'meta_description_ar' => ['nullable', 'string', 'max:160'],
             'is_active' => ['sometimes', 'boolean'],
             'subdomain' => ['nullable', 'string', 'max:63', $subdomainRule],
             'phone' => ['nullable', 'string', 'max:50'],
@@ -233,6 +348,21 @@ class HotelController extends CrudController
             'amenity_ids' => ['sometimes', 'array'],
             'amenity_ids.*' => ['integer'],
             'policy' => ['sometimes', 'array'],
+            'policy.cancellation_policy' => ['nullable', 'string'],
+            'policy.children_policy' => ['nullable', 'string'],
+            'policy.pet_policy' => ['nullable', 'string'],
+            'policy.smoking_policy' => ['nullable', 'string'],
+            'policy.extra_bed_policy' => ['nullable', 'string'],
+            'policy.cancellation_policy_ar' => ['nullable', 'string'],
+            'policy.children_policy_ar' => ['nullable', 'string'],
+            'policy.pet_policy_ar' => ['nullable', 'string'],
+            'policy.smoking_policy_ar' => ['nullable', 'string'],
+            'policy.extra_bed_policy_ar' => ['nullable', 'string'],
+            'policy.important_notes' => ['nullable', 'string'],
+            'policy.check_in_from' => $policyTimeRule,
+            'policy.check_in_to' => $policyTimeRule,
+            'policy.check_out_from' => $policyTimeRule,
+            'policy.check_out_to' => $policyTimeRule,
             'social_media' => ['sometimes', 'array'],
             'contacts' => ['sometimes', 'array'],
             'cover_image_id' => ['sometimes', 'nullable', 'integer'],
@@ -270,9 +400,10 @@ class HotelController extends CrudController
     private function syncNestedHotelRelations(Hotel $hotel, array $nested): void
     {
         if (array_key_exists('policy', $nested)) {
+            $isPolicyUpdate = $hotel->policy()->exists();
             $hotel->policy()->updateOrCreate(
                 ['hotel_id' => $hotel->id],
-                $this->filterPolicyPayload($nested['policy'])
+                $this->filterPolicyPayload($nested['policy'], $isPolicyUpdate)
             );
         }
 
@@ -295,21 +426,34 @@ class HotelController extends CrudController
         }
     }
 
-    private function filterPolicyPayload(array $policy): array
+    private function filterPolicyPayload(array $policy, bool $isUpdate = false): array
     {
         $allowed = [
-            'check_in_time',
-            'check_out_time',
+            'check_in_from',
+            'check_in_to',
+            'check_out_from',
+            'check_out_to',
             'cancellation_policy',
             'children_policy',
             'pet_policy',
             'smoking_policy',
             'extra_bed_policy',
+            'cancellation_policy_ar',
+            'children_policy_ar',
+            'pet_policy_ar',
+            'smoking_policy_ar',
+            'extra_bed_policy_ar',
             'important_notes',
         ];
 
+        $policy = LocalizedMapper::mapInputForSave(HotelPolicy::class, $policy, null, $isUpdate);
+
         return collect($policy)->only($allowed)->map(function ($value, $key) {
-            if (in_array($key, ['check_in_time', 'check_out_time'], true)) {
+            if (in_array($key, ['check_in_from', 'check_in_to', 'check_out_from', 'check_out_to'], true)) {
+                return $this->normalizePolicyTime($value);
+            }
+
+            if (str_ends_with((string) $key, '_ar')) {
                 return $value === '' || $value === null ? null : (string) $value;
             }
 
@@ -359,6 +503,17 @@ class HotelController extends CrudController
         return $value === null ? '' : (string) $value;
     }
 
+    private function normalizePolicyTime(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $parts = explode(':', (string) $value);
+
+        return sprintf('%02d:%02d:00', (int) $parts[0], (int) $parts[1]);
+    }
+
     private function syncCoverImage(Hotel $hotel, mixed $coverImageId): void
     {
         if ($coverImageId === null || $coverImageId === '') {
@@ -381,7 +536,10 @@ class HotelController extends CrudController
 
     public function autosave(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'update', $id)) {
+            return $error;
+        }
+
         $this->update($request, $id);
         $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities', 'reviews', 'faqs'])->findOrFail($id);
         $setup = $hotel->setupStatus;
@@ -406,7 +564,10 @@ class HotelController extends CrudController
 
     public function workspace(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->staffOrAdminError($request, 'show', $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])->findOrFail($id);
 
         return response()->json([
@@ -420,11 +581,42 @@ class HotelController extends CrudController
 
     public function roomsSearch(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
-        $rooms = RoomType::where('hotel_id', $id)->where('is_active', true)->get()->map(fn ($room) => [
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
+        $rooms = RoomType::where('hotel_id', $id)
+            ->where('is_active', true)
+            ->with(['images' => fn ($q) => $q->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order')])
+            ->get()
+            ->map(fn (RoomType $room) => $this->mapGuestRoomSearchRow($room));
+
+        return response()->json(['property_id' => $id, 'rooms' => $rooms]);
+    }
+
+    private function mapGuestRoomSearchRow(RoomType $room): array
+    {
+        $coverImageUrl = null;
+        if ($room->relationLoaded('images')) {
+            $activeImages = $room->images->where('is_active', true);
+            $coverImage = $activeImages->firstWhere('is_cover', true)
+                ?? $activeImages->sortBy('display_order')->first();
+            $coverImageUrl = $coverImage?->image;
+        } else {
+            $coverImage = $room->images()
+                ->where('is_active', true)
+                ->orderByDesc('is_cover')
+                ->orderBy('display_order')
+                ->first();
+            $coverImageUrl = $coverImage?->image;
+        }
+
+        $data = [
             'room_type_id' => $room->id,
             'name' => $room->name,
+            'name_ar' => $room->name_ar,
             'description' => $room->description,
+            'description_ar' => $room->description_ar,
             'max_adults' => $room->max_adults,
             'max_children' => $room->max_children,
             'total_units' => $room->total_units,
@@ -433,26 +625,40 @@ class HotelController extends CrudController
             'extra_bed_allowed' => (bool) $room->extra_bed_allowed,
             'extra_bed_price' => (string) $room->extra_bed_price,
             'breakfast_included' => (bool) $room->breakfast_included,
-            'cover_image_url' => null,
-        ]);
+            'cover_image_url' => $coverImageUrl,
+        ];
 
-        return response()->json(['property_id' => $id, 'rooms' => $rooms]);
+        $data = LocalizedMapper::mapOutput($room, $data);
+        unset($data['name_ar'], $data['description_ar']);
+
+        return $data;
     }
 
     public function availability(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
-        $hotel = Hotel::query()->with(['roomTypes' => fn ($q) => $q->where('is_active', true)])->findOrFail($id);
-        $units = $hotel->roomTypes->map(fn ($room) => [
-            'id' => $room->id,
-            'name' => $room->name,
-            'available_units' => $room->total_units,
-            'is_available' => $room->total_units > 0,
-            'max_adults' => $room->max_adults,
-            'max_children' => $room->max_children,
-            'base_price' => (string) $room->base_price,
-            'currency' => $room->currency,
-        ]);
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
+        $hotel = Hotel::query()->with([
+            'roomTypes' => fn ($q) => $q->where('is_active', true)->with([
+                'images' => fn ($q2) => $q2->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order'),
+            ]),
+        ])->findOrFail($id);
+        $units = $hotel->roomTypes->map(function (RoomType $room) {
+            $searchRow = $this->mapGuestRoomSearchRow($room);
+
+            return [
+                'id' => $room->id,
+                'name' => $searchRow['name'],
+                'available_units' => $room->total_units,
+                'is_available' => $room->total_units > 0,
+                'max_adults' => $room->max_adults,
+                'max_children' => $room->max_children,
+                'base_price' => (string) $room->base_price,
+                'currency' => $room->currency,
+            ];
+        });
 
         return response()->json([
             'property_id' => $hotel->id,
@@ -469,7 +675,10 @@ class HotelController extends CrudController
 
     public function rates(Request $request, int $id): JsonResponse
     {
-        $this->authorizeStaffHotelAccess($request, $id);
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->findOrFail($id);
 
         return response()->json([
@@ -521,5 +730,40 @@ class HotelController extends CrudController
             : $faqQuery->where('slug', $faq)->firstOrFail();
 
         return response()->json(CompatResponse::faqPage($hotel, $faqModel));
+    }
+
+    public function publicRooms(Request $request, string $property): JsonResponse
+    {
+        $hotel = Hotel::query()
+            ->where('publishing_status', 'published')
+            ->where('is_active', true)
+            ->where(function ($q) use ($property) {
+                if (is_numeric($property)) {
+                    $q->where('id', (int) $property);
+                } else {
+                    $q->where('slug', $property);
+                }
+            })
+            ->first();
+
+        if (! $hotel) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
+        $rooms = RoomType::query()
+            ->where('hotel_id', $hotel->id)
+            ->where('is_active', true)
+            ->where('total_units', '>', 0)
+            ->with(['images' => fn ($q) => $q->where('is_active', true)])
+            ->get();
+
+        return response()->json(RoomResource::collection($rooms)->resolve($request));
+    }
+
+    private function pageSize(Request $request): int
+    {
+        $perPage = $request->query('per_page', $request->query('page_size', 20));
+
+        return max(1, min(100, (int) $perPage));
     }
 }

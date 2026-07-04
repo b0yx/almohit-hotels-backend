@@ -2,15 +2,17 @@
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
+use App\Models\ApiToken;
 use App\Models\BookingInquiry;
 use App\Models\Hotel;
+use App\Models\HotelImage;
 use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ProductionReadinessTest extends TestCase
@@ -18,14 +20,23 @@ class ProductionReadinessTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $staff;
+
     private User $customer;
+
     private User $otherStaff;
+
     private Hotel $hotel;
+
     private Hotel $otherHotel;
+
     private string $adminToken;
+
     private string $staffToken;
+
     private string $customerToken;
+
     private string $otherStaffToken;
 
     protected function setUp(): void
@@ -68,8 +79,9 @@ class ProductionReadinessTest extends TestCase
 
     private function createToken(User $user): string
     {
-        $plain = \Illuminate\Support\Str::random(64);
-        \App\Models\ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+        $plain = Str::random(64);
+        ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+
         return $plain;
     }
 
@@ -81,6 +93,7 @@ class ProductionReadinessTest extends TestCase
     private function sanctumHeader(User $user): array
     {
         $token = $user->createToken('test_token')->plainTextToken;
+
         return ['Authorization' => "Bearer $token", 'Accept' => 'application/json'];
     }
 
@@ -125,6 +138,38 @@ class ProductionReadinessTest extends TestCase
         ], $this->sanctumHeader($this->staff));
 
         $response->assertStatus(403);
+    }
+
+    public function test_guest_cannot_upload_image(): void
+    {
+        Storage::fake('public');
+        $file = UploadedFile::fake()->image('guest.jpg');
+
+        $this->postJson('/api/property-images/', [
+            'property' => $this->hotel->id,
+            'image' => $file,
+        ])->assertStatus(401);
+    }
+
+    public function test_guest_cannot_update_or_delete_image(): void
+    {
+        $image = HotelImage::query()->create([
+            'hotel_id' => $this->hotel->id,
+            'image' => '/media/hotels/existing.jpg',
+            'caption' => 'Existing',
+        ]);
+
+        $this->patchJson('/api/property-images/'.$image->id.'/', [
+            'caption' => 'Guest edit',
+        ])->assertStatus(401);
+
+        $this->deleteJson('/api/property-images/'.$image->id.'/')
+            ->assertStatus(401);
+
+        $this->assertDatabaseHas('hotel_images', [
+            'id' => $image->id,
+            'caption' => 'Existing',
+        ]);
     }
 
     // ─── HOTEL STATUS ENDPOINTS ──────────────────────────────────
@@ -294,6 +339,48 @@ class ProductionReadinessTest extends TestCase
         $this->patchJson('/api/properties/'.$this->hotel->id.'/', ['name' => 'Updated'], $this->authHeader($this->staffToken))
             ->assertOk()
             ->assertJsonPath('name', 'Updated');
+    }
+
+    public function test_customer_cannot_reach_hotel_mutation_or_management_endpoints(): void
+    {
+        $this->patchJson('/api/properties/'.$this->hotel->id.'/', ['name' => 'Customer Hack'], $this->authHeader($this->customerToken))
+            ->assertStatus(403);
+
+        $this->postJson('/api/properties/'.$this->hotel->id.'/publish/', [], $this->authHeader($this->customerToken))
+            ->assertStatus(403);
+
+        $this->getJson('/api/properties/'.$this->hotel->id.'/readiness/', $this->authHeader($this->customerToken))
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('hotels', [
+            'id' => $this->hotel->id,
+            'name' => 'Staff Hotel',
+            'publishing_status' => 'draft',
+        ]);
+    }
+
+    public function test_public_endpoints_hide_unpublished_hotel_operational_data(): void
+    {
+        RoomType::query()->create([
+            'hotel_id' => $this->otherHotel->id,
+            'name' => 'Draft Room',
+            'max_adults' => 2,
+            'base_price' => 100,
+            'total_units' => 3,
+            'is_active' => true,
+        ]);
+
+        $this->getJson('/api/properties/'.$this->otherHotel->id.'/')
+            ->assertStatus(404);
+
+        $this->getJson('/api/properties/'.$this->otherHotel->id.'/rooms/search/')
+            ->assertStatus(404);
+
+        $this->getJson('/api/properties/'.$this->otherHotel->id.'/availability/')
+            ->assertStatus(404);
+
+        $this->getJson('/api/properties/'.$this->otherHotel->id.'/rates/')
+            ->assertStatus(404);
     }
 
     public function test_staff_cannot_access_booking_of_other_hotel(): void
