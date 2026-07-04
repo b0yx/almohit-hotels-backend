@@ -84,29 +84,21 @@ class ImageUploadController extends Controller
         $cfg = $this->config();
         $user = $request->user();
 
-        $this->assertImageUploadSucceeded($request);
-
-        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
-            return response()->json(['detail' => 'You do not have permission to upload images for this resource.'], 403);
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
         }
 
-        if ($user && ! $user->isAdmin()) {
-            $parentId = (int) $request->input($cfg['request_key']);
-            $hasAccess = match ($cfg['dir']) {
-                'hotels' => Hotel::query()->whereKey($parentId)->whereHas('assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
-                'room-types' => RoomType::query()->whereKey($parentId)->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
-                'facilities' => Facility::query()->whereKey($parentId)->exists(),
-                default => false,
-            };
-            if (! $hasAccess) {
-                return response()->json(['detail' => 'You do not have permission to upload images for this resource.'], 403);
-            }
+        $this->assertImageUploadSucceeded($request);
+
+        $parentId = (int) $request->input($cfg['request_key']);
+        if (! $this->canManageImageResource($user, $cfg, $parentId)) {
+            return response()->json(['detail' => 'You do not have permission to upload images for this resource.'], 403);
         }
 
         $request->merge($this->normalizeBooleans($request, ['is_cover', 'is_active']));
 
         $rules = [
-            $cfg['request_key'] => ['required', 'integer', 'exists:' . $cfg['exists_table'] . ',id'],
+            $cfg['request_key'] => ['required', 'integer', 'exists:'.$cfg['exists_table'].',id'],
             'caption' => ['nullable', 'string', 'max:255'],
             'alt_text' => ['nullable', 'string', 'max:255'],
             'display_order' => ['nullable', 'integer', 'min:0'],
@@ -128,11 +120,11 @@ class ImageUploadController extends Controller
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $filename = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+            $filename = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
             $storedPath = $file->storeAs($cfg['dir'], $filename, 'public');
-            $data['image'] = '/media/' . $storedPath;
+            $data['image'] = '/media/'.$storedPath;
             $data['thumbnail'] = null;
-        } elseif (!isset($data['image']) || $data['image'] === null) {
+        } elseif (! isset($data['image']) || $data['image'] === null) {
             unset($data['image']);
         }
 
@@ -160,6 +152,10 @@ class ImageUploadController extends Controller
         $cfg = $this->config();
         $model = $cfg['model']::query()->findOrFail((int) $id);
 
+        if ($error = $this->imageWriteError($request, $cfg, (int) $model->{$cfg['foreign_key']})) {
+            return $error;
+        }
+
         $request->merge($this->normalizeBooleans($request, ['is_cover', 'is_active']));
 
         $rules = [
@@ -186,9 +182,9 @@ class ImageUploadController extends Controller
             }
 
             $file = $request->file('image');
-            $filename = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+            $filename = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
             $storedPath = $file->storeAs($cfg['dir'], $filename, 'public');
-            $data['image'] = '/media/' . $storedPath;
+            $data['image'] = '/media/'.$storedPath;
             $data['thumbnail'] = null;
         }
 
@@ -209,6 +205,10 @@ class ImageUploadController extends Controller
         $cfg = $this->config();
         $model = $cfg['model']::query()->findOrFail((int) $id);
 
+        if ($error = $this->imageWriteError(request(), $cfg, (int) $model->{$cfg['foreign_key']})) {
+            return $error;
+        }
+
         if ($model->image && str_starts_with($model->image, '/media/')) {
             Storage::disk('public')->delete(str_replace('/media/', '', $model->image));
         }
@@ -220,6 +220,38 @@ class ImageUploadController extends Controller
         $model->delete();
 
         return response()->json(null, 204);
+    }
+
+    private function imageWriteError(Request $request, array $cfg, int $parentId): ?JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
+        }
+
+        if (! $this->canManageImageResource($user, $cfg, $parentId)) {
+            return response()->json(['detail' => 'You do not have permission to manage images for this resource.'], 403);
+        }
+
+        return null;
+    }
+
+    private function canManageImageResource($user, array $cfg, int $parentId): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if (! $user->isStaffRole()) {
+            return false;
+        }
+
+        return match ($cfg['dir']) {
+            'hotels' => Hotel::query()->whereKey($parentId)->whereHas('assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
+            'room-types' => RoomType::query()->whereKey($parentId)->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
+            'facilities' => Facility::query()->whereKey($parentId)->exists(),
+            default => false,
+        };
     }
 
     private function contentType(array $cfg): string
@@ -243,6 +275,7 @@ class ImageUploadController extends Controller
                 }
             }
         }
+
         return $result;
     }
 

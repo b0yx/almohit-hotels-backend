@@ -6,6 +6,9 @@ use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
+use App\Models\Currency;
+use App\Models\ExchangeRate;
+use App\Models\Favorite;
 use App\Models\Facility;
 use App\Models\FacilityCategory;
 use App\Models\FacilityImage;
@@ -31,6 +34,9 @@ class AuditService
         FacilityCategory::class => 'facility_category',
         AvailabilityBlock::class => 'availability_block',
         ContactMessage::class => 'contact_message',
+        Currency::class => 'currency',
+        ExchangeRate::class => 'exchange_rate',
+        Favorite::class => 'favorite',
         HotelImage::class => 'hotel_image',
         RoomTypeImage::class => 'room_type_image',
         FacilityImage::class => 'facility_image',
@@ -83,7 +89,7 @@ class AuditService
 
     public static function changes(?Model $old, array $data): ?array
     {
-        if (!$old) {
+        if (! $old) {
             return null;
         }
         $changes = [];
@@ -93,6 +99,7 @@ class AuditService
                 $changes[$key] = ['old' => $oldValue, 'new' => $value];
             }
         }
+
         return empty($changes) ? null : $changes;
     }
 }

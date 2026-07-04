@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
-use App\Models\AvailabilityBlock;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
 use App\Models\FacilityCategory;
 use App\Models\Hotel;
+use App\Models\PasswordResetOtp;
 use App\Models\Review;
 use App\Models\RoomPrice;
 use App\Models\RoomType;
@@ -23,9 +23,13 @@ class AuditCoverageTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $customer;
+
     private string $adminToken;
+
     private string $customerToken;
+
     private Hotel $hotel;
 
     protected function setUp(): void
@@ -168,7 +172,7 @@ class AuditCoverageTest extends TestCase
         $this->deleteJson("/api/properties/{$this->hotel->id}/", [], $this->auth($this->adminToken))
             ->assertStatus(204);
 
-        $logs = \App\Models\AuditLog::where('action', 'deleted')
+        $logs = AuditLog::where('action', 'deleted')
             ->where('content_type', 'hotel')
             ->where('object_id', (string) $this->hotel->id)
             ->get();
@@ -460,7 +464,7 @@ class AuditCoverageTest extends TestCase
     {
         // Create OTP
         $code = '123456';
-        \App\Models\PasswordResetOtp::create([
+        PasswordResetOtp::create([
             'email' => $this->customer->email,
             'otp_hash' => bcrypt($code),
             'expires_at' => now()->addMinutes(10),

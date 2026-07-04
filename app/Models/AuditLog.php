@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class AuditLog extends Model
 {
     public $timestamps = false;
+
     protected $guarded = ['id'];
 
     protected function casts(): array

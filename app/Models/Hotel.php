@@ -5,10 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Hotel extends Model
 {
     protected $guarded = ['id'];
+
+    protected static function booted(): void
+    {
+        static::deleting(function ($hotel) {
+            $hotel->faqs()->delete();
+        });
+    }
 
     protected function casts(): array
     {
@@ -20,6 +29,11 @@ class Hotel extends Model
             'is_active' => 'boolean',
             'published_at' => 'datetime',
         ];
+    }
+
+    public function faqs(): MorphMany
+    {
+        return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
     }
 
     public function amenities(): BelongsToMany
@@ -35,6 +49,11 @@ class Hotel extends Model
     public function assignedStaff(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'hotel_user_assignments')->withTimestamps();
+    }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
     }
 
     public function images(): HasMany
@@ -62,22 +81,22 @@ class Hotel extends Model
         return $this->images()->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order')->first();
     }
 
-    public function policy(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function policy(): HasOne
     {
         return $this->hasOne(HotelPolicy::class);
     }
 
-    public function socialMedia(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function socialMedia(): HasOne
     {
         return $this->hasOne(PropertySocialMedia::class);
     }
 
-    public function contacts(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function contacts(): HasOne
     {
         return $this->hasOne(PropertyContacts::class);
     }
 
-    public function setupStatus(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function setupStatus(): HasOne
     {
         return $this->hasOne(PropertySetupStatus::class);
     }

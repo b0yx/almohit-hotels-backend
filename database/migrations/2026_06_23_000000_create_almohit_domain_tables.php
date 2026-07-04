@@ -129,8 +129,10 @@ return new class extends Migration
             foreach (['cancellation_policy', 'children_policy', 'pet_policy', 'smoking_policy', 'late_check_in_policy', 'refund_policy', 'terms_and_conditions', 'extra_bed_policy', 'important_notes'] as $column) {
                 $table->text($column)->nullable();
             }
-            $table->time('check_in_time')->nullable();
-            $table->time('check_out_time')->nullable();
+            $table->time('check_in_from')->nullable();
+            $table->time('check_in_to')->nullable();
+            $table->time('check_out_from')->nullable();
+            $table->time('check_out_to')->nullable();
             $table->timestamps();
         });
 

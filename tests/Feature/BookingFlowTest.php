@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApiToken;
 use App\Models\BookingInquiry;
 use App\Models\Hotel;
 use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class BookingFlowTest extends TestCase
@@ -14,12 +16,19 @@ class BookingFlowTest extends TestCase
     use RefreshDatabase;
 
     private Hotel $hotel;
+
     private RoomType $room;
+
     private User $customer;
+
     private User $staff;
+
     private User $admin;
+
     private string $customerToken;
+
     private string $staffToken;
+
     private string $adminToken;
 
     protected function setUp(): void
@@ -52,8 +61,9 @@ class BookingFlowTest extends TestCase
 
     private function createToken(User $user): string
     {
-        $plain = \Illuminate\Support\Str::random(64);
-        \App\Models\ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+        $plain = Str::random(64);
+        ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+
         return $plain;
     }
 

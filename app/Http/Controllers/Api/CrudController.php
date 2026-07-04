@@ -3,8 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\BookingInquiry;
+use App\Models\ContactMessage;
+use App\Models\Facility;
+use App\Models\FacilityCategory;
+use App\Models\Hotel;
+use App\Models\Review;
+use App\Models\RoomType;
+use App\Models\User;
 use App\Services\AuditService;
 use App\Support\CompatResponse;
+use App\Support\LocalizedMapper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +24,9 @@ use Illuminate\Support\Str;
 class CrudController extends Controller
 {
     private const string ADMIN_ONLY = 'admin_only';
+
     private const string STAFF_OR_ADMIN = 'staff_or_admin';
+
     private const string READ_PUBLIC = 'read_public';
 
     private array $accessMap = [];
@@ -22,50 +34,60 @@ class CrudController extends Controller
     public function __construct(protected string $modelClass)
     {
         $this->accessMap = [
-            \App\Models\User::class => self::ADMIN_ONLY,
-            \App\Models\AuditLog::class => self::ADMIN_ONLY,
-            \App\Models\Hotel::class => self::STAFF_OR_ADMIN,
-            \App\Models\Facility::class => self::READ_PUBLIC,
-            \App\Models\FacilityCategory::class => self::READ_PUBLIC,
-            \App\Models\ContactMessage::class => self::STAFF_OR_ADMIN,
-            \App\Models\BookingInquiry::class => self::STAFF_OR_ADMIN,
-            \App\Models\Review::class => self::STAFF_OR_ADMIN,
+            User::class => self::ADMIN_ONLY,
+            AuditLog::class => self::ADMIN_ONLY,
+            Hotel::class => self::STAFF_OR_ADMIN,
+            Facility::class => self::READ_PUBLIC,
+            FacilityCategory::class => self::READ_PUBLIC,
+            ContactMessage::class => self::STAFF_OR_ADMIN,
+            BookingInquiry::class => self::STAFF_OR_ADMIN,
+            Review::class => self::STAFF_OR_ADMIN,
         ];
     }
 
-    protected function authorizeAction(Request $request, string $action, ?int $resourceId = null): bool
+    protected function checkAuthorization(Request $request, string $action, ?int $resourceId = null): ?JsonResponse
     {
         $user = $request->user();
         $level = $this->accessMap[$this->modelClass] ?? self::STAFF_OR_ADMIN;
 
-        if ($level === self::ADMIN_ONLY) {
-            return $user && $user->isAdmin();
+        if ($level === self::READ_PUBLIC && in_array($action, ['index', 'show'], true)) {
+            return null;
         }
 
-        if ($level === self::STAFF_OR_ADMIN) {
-            return $user && ($user->isAdmin() || $user->isStaffRole());
+        if (! $user) {
+            return response()->json(['detail' => 'Authentication credentials were not provided.'], 401);
         }
 
-        if ($level === self::READ_PUBLIC) {
-            if (in_array($action, ['index', 'show'], true)) {
-                return true;
-            }
-            return $user && ($user->isAdmin() || $user->isStaffRole());
+        if ($level === self::ADMIN_ONLY && ! $user->isAdmin()) {
+            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
         }
 
-        return true;
+        if ($level === self::STAFF_OR_ADMIN && ! ($user->isAdmin() || $user->isStaffRole())) {
+            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        }
+
+        if ($level === self::READ_PUBLIC && ! ($user->isAdmin() || $user->isStaffRole())) {
+            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        }
+
+        return null;
+    }
+
+    protected function authorizeAction(Request $request, string $action, ?int $resourceId = null): bool
+    {
+        return $this->checkAuthorization($request, $action, $resourceId) === null;
     }
 
     public function index(Request $request): JsonResponse
     {
-        if (! $this->authorizeAction($request, 'index')) {
-            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        if ($error = $this->checkAuthorization($request, 'index')) {
+            return $error;
         }
 
         $query = $this->modelClass::query();
         $user = $request->user();
 
-        if ($this->modelClass === \App\Models\BookingInquiry::class && $user) {
+        if ($this->modelClass === BookingInquiry::class && $user) {
             if (! $user->isAdmin() && ! $user->isStaffRole()) {
                 $query->where('customer_id', $user->id);
             } elseif ($user->isStaffRole() && ! $user->isAdmin()) {
@@ -73,8 +95,12 @@ class CrudController extends Controller
             }
         }
 
-        if ($this->modelClass === \App\Models\ContactMessage::class && $user && $user->isStaffRole() && ! $user->isAdmin()) {
+        if ($this->modelClass === ContactMessage::class && $user && $user->isStaffRole() && ! $user->isAdmin()) {
             $query->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id));
+        }
+
+        if ($this->modelClass === Facility::class && ! $user) {
+            $this->applyPublicServiceVisibility($query);
         }
 
         $this->applyFilters($request, $query);
@@ -88,8 +114,8 @@ class CrudController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if (! $this->authorizeAction($request, 'store')) {
-            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        if ($error = $this->checkAuthorization($request, 'store')) {
+            return $error;
         }
 
         $model = $this->modelClass::query()->create($this->prepareModelInput($request));
@@ -104,16 +130,16 @@ class CrudController extends Controller
     protected function modelsWithIcon(): array
     {
         return [
-            \App\Models\Facility::class,
-            \App\Models\FacilityCategory::class,
+            Facility::class,
+            FacilityCategory::class,
         ];
     }
 
     protected function iconStorageDir(): string
     {
         return match ($this->modelClass) {
-            \App\Models\Facility::class => 'facilities',
-            \App\Models\FacilityCategory::class => 'facility-categories',
+            Facility::class => 'facilities',
+            FacilityCategory::class => 'facility-categories',
             default => 'icons',
         };
     }
@@ -121,6 +147,7 @@ class CrudController extends Controller
     protected function prepareModelInput(Request $request, ?Model $existing = null): array
     {
         $data = $this->normalizeInput($request->except(['icon']));
+        $data = LocalizedMapper::mapInputForSave($this->modelClass, $data, null, $existing !== null && $existing->exists);
 
         foreach (['is_active', 'is_featured', 'advance_booking_required', 'smoking_allowed', 'extra_bed_allowed', 'breakfast_included'] as $field) {
             if (! $request->has($field)) {
@@ -160,9 +187,9 @@ class CrudController extends Controller
 
         $this->deleteStoredIcon($existing?->icon);
 
-        $filename = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
         $storedPath = $file->storeAs($this->iconStorageDir(), $filename, 'public');
-        $data['icon'] = '/media/' . $storedPath;
+        $data['icon'] = '/media/'.$storedPath;
 
         return $data;
     }
@@ -179,22 +206,40 @@ class CrudController extends Controller
     protected function eagerLoads(): array
     {
         return match ($this->modelClass) {
-            \App\Models\RoomType::class => ['images', 'prices'],
-            \App\Models\Facility::class => ['images', 'category'],
-            \App\Models\BookingInquiry::class => ['hotel', 'roomType', 'guests'],
-            \App\Models\Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'],
+            RoomType::class => ['images', 'prices'],
+            Facility::class => ['images', 'category'],
+            BookingInquiry::class => ['hotel', 'roomType', 'guests', 'bookingCurrency'],
+            Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'],
             default => [],
         };
+    }
+
+    protected function applyPublicServiceVisibility($query): void
+    {
+        $query
+            ->where('is_active', true)
+            ->where(function ($inner) {
+                $inner
+                    ->doesntHave('hotels')
+                    ->orWhereHas('hotels', fn ($q) => $q
+                        ->where('is_active', true)
+                        ->where('publishing_status', 'published'));
+            });
     }
 
     public function show(int $id): JsonResponse
     {
         $request = request();
-        if (! $this->authorizeAction($request, 'show', $id)) {
-            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        if ($error = $this->checkAuthorization($request, 'show', $id)) {
+            return $error;
         }
 
         $query = $this->modelClass::query();
+        $user = $request->user();
+        if ($this->modelClass === Facility::class && ! $user) {
+            $this->applyPublicServiceVisibility($query);
+        }
+
         foreach ($this->eagerLoads() as $relation) {
             $query->with($relation);
         }
@@ -204,8 +249,8 @@ class CrudController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if (! $this->authorizeAction($request, 'update', $id)) {
-            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        if ($error = $this->checkAuthorization($request, 'update', $id)) {
+            return $error;
         }
 
         $model = $this->modelClass::query()->findOrFail($id);
@@ -223,8 +268,8 @@ class CrudController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $request = request();
-        if (! $this->authorizeAction($request, 'destroy', $id)) {
-            return response()->json(['detail' => 'You do not have permission to perform this action.'], 403);
+        if ($error = $this->checkAuthorization($request, 'destroy', $id)) {
+            return $error;
         }
 
         $model = $this->modelClass::query()->findOrFail($id);
@@ -263,11 +308,18 @@ class CrudController extends Controller
 
     protected function syncManyToMany(Model $model, Request $request): void
     {
-        if ($model instanceof \App\Models\Hotel) {
+        if ($model instanceof Hotel) {
             if ($request->has('facility_ids')) {
                 $model->facilities()->sync($request->input('facility_ids', []));
             } elseif ($request->has('amenity_ids')) {
                 $model->facilities()->sync($request->input('amenity_ids', []));
+            }
+        }
+
+        if ($model instanceof Facility) {
+            $hotelId = $request->input('property', $request->input('hotel_id'));
+            if ($hotelId) {
+                $model->hotels()->syncWithoutDetaching([(int) $hotelId]);
             }
         }
     }
@@ -297,13 +349,17 @@ class CrudController extends Controller
                 if (in_array($value, ['true', 'false'], true)) {
                     $value = $value === 'true';
                 }
+                if ($this->modelClass === Facility::class && $param === 'property') {
+                    $query->whereHas('hotels', fn ($q) => $q->whereKey($value));
+                    continue;
+                }
                 $query->where($column, $value);
             }
         }
 
         if ($search = $request->query('search')) {
             $searchColumns = match ($this->modelClass) {
-                \App\Models\User::class => ['full_name', 'email', 'phone'],
+                User::class => ['full_name', 'email', 'phone'],
                 default => ['name', 'full_name', 'email', 'customer_name', 'subject'],
             };
 
@@ -314,5 +370,4 @@ class CrudController extends Controller
             });
         }
     }
-
 }

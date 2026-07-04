@@ -31,7 +31,9 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     public const ROLE_CUSTOMER = 'customer';
+
     public const ROLE_STAFF = 'staff';
+
     public const ROLE_ADMIN = 'admin';
 
     public function getNameAttribute(): string
@@ -47,6 +49,16 @@ class User extends Authenticatable
     public function assignedHotels(): BelongsToMany
     {
         return $this->belongsToMany(Hotel::class, 'hotel_user_assignments')->withTimestamps();
+    }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function favoriteHotels(): BelongsToMany
+    {
+        return $this->belongsToMany(Hotel::class, 'favorites')->withTimestamps();
     }
 
     public function isAdmin(): bool

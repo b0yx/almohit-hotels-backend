@@ -19,7 +19,7 @@ return [
 
     'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000'))))),
 
-    'allowed_headers' => ['Content-Type', 'Authorization', 'X-Hotel-Subdomain', 'X-Requested-With', 'Accept'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'X-Hotel-Subdomain', 'X-Requested-With', 'Accept', 'X-Locale'],
 
     'exposed_headers' => [],
 

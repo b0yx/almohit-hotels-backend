@@ -29,12 +29,12 @@ class Facility extends Model
 
     public function hotels(): BelongsToMany
     {
-        return $this->belongsToMany(Hotel::class, 'facility_hotel')->withTimestamps();
+        return $this->belongsToMany(Hotel::class, 'facility_hotel', 'facility_id', 'hotel_id')->withTimestamps();
     }
 
     public function roomTypes(): BelongsToMany
     {
-        return $this->belongsToMany(RoomType::class, 'facility_room_type')->withTimestamps();
+        return $this->belongsToMany(RoomType::class, 'facility_room_type', 'facility_id', 'room_type_id')->withTimestamps();
     }
 
     public function images(): HasMany

@@ -2,19 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
-use App\Models\BookingGuest;
+use App\Models\ApiToken;
 use App\Models\BookingInquiry;
 use App\Models\Hotel;
-use App\Models\HotelImage;
 use App\Models\RoomType;
-use App\Models\RoomTypeImage;
-use App\Models\ServiceImage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class E2EComprehensiveTest extends TestCase
@@ -22,15 +19,25 @@ class E2EComprehensiveTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $staffA;
+
     private User $staffB;
+
     private User $customer;
+
     private Hotel $hotelA;
+
     private Hotel $hotelB;
+
     private RoomType $roomA;
+
     private string $adminToken;
+
     private string $staffAToken;
+
     private string $staffBToken;
+
     private string $customerToken;
 
     protected function setUp(): void
@@ -83,8 +90,9 @@ class E2EComprehensiveTest extends TestCase
 
     private function createToken(User $user): string
     {
-        $plain = \Illuminate\Support\Str::random(64);
-        \App\Models\ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+        $plain = Str::random(64);
+        ApiToken::create(['user_id' => $user->id, 'token' => hash('sha256', $plain)]);
+
         return $plain;
     }
 
@@ -96,6 +104,7 @@ class E2EComprehensiveTest extends TestCase
     private function sanctum(User $user): array
     {
         $token = $user->createToken('test')->plainTextToken;
+
         return ['Authorization' => "Bearer $token", 'Accept' => 'application/json'];
     }
 
@@ -392,11 +401,9 @@ class E2EComprehensiveTest extends TestCase
     {
         // /api/auth/users/ is admin-only via role middleware which returns 401 for anonymous
         $this->getJson('/api/auth/users/')->assertStatus(401);
-        // /api/properties/{id} goes through CrudController which returns 403 for anonymous (mapped as staff_or_admin)
-        // Both 401 and 403 indicate access denied; 403 is returned because the middleware allows
-        // anonymous through but then authorizeAction fails
-        $r = $this->getJson('/api/properties/'.$this->hotelA->id.'/');
-        $this->assertContains($r->status(), [401, 403], 'Anonymous should be denied access');
+        // Unpublished properties are hidden from public callers to avoid leaking draft existence.
+        $this->getJson('/api/properties/'.$this->hotelA->id.'/')
+            ->assertStatus(404);
         // /api/auth/me/ checks if user exists; anonymous should get 401
         $this->getJson('/api/auth/me/')->assertStatus(401);
     }
@@ -753,11 +760,11 @@ class E2EComprehensiveTest extends TestCase
     public function test_p8_sql_injection_attempts(): void
     {
         $payloads = [
-            ["' OR '1'='1", "sqli1@test.com"],
-            ["'; DROP TABLE users; --", "sqli2@test.com"],
-            ["1; SELECT * FROM users", "sqli3@test.com"],
-            ["<script>alert('xss')</script>", "sqli4@test.com"],
-            ["../../../etc/passwd", "sqli5@test.com"],
+            ["' OR '1'='1", 'sqli1@test.com'],
+            ["'; DROP TABLE users; --", 'sqli2@test.com'],
+            ['1; SELECT * FROM users', 'sqli3@test.com'],
+            ["<script>alert('xss')</script>", 'sqli4@test.com'],
+            ['../../../etc/passwd', 'sqli5@test.com'],
         ];
         foreach ($payloads as [$payload, $email]) {
             $r = $this->postJson('/api/auth/signup/', [
