@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\BookingInquiry;
+use App\Models\Faq;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
 use App\Models\HotelService;
@@ -90,6 +91,7 @@ class CompatResponse
         $amenities = $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [];
         $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
         $readinessErrors = self::computeReadinessErrors($hotel);
+        $faqs = self::hotelFaqs($hotel);
 
         return [
             'id' => $hotel->id,
@@ -120,6 +122,8 @@ class CompatResponse
             'total_reviews' => $totalReviews,
             'amenities' => $amenities,
             'images' => $images,
+            'faqs' => $faqs,
+            'faq_schema' => self::faqSchema($faqs),
             'policy' => $policy ? self::genericPolicy($policy) : null,
             'social_media' => $socialMedia ? self::generic($socialMedia) : null,
             'contacts' => $contacts ? self::generic($contacts) : null,
@@ -140,6 +144,96 @@ class CompatResponse
     public static function genericPolicy(HotelPolicy $policy): array
     {
         return $policy->toArray();
+    }
+
+    private static function hotelFaqs(Hotel $hotel): array
+    {
+        if (! $hotel->relationLoaded('faqs')) {
+            return [];
+        }
+
+        $user = request()->user();
+        $isAdminRequest = $user && ($user->isAdmin() || $user->isStaffRole());
+        $faqs = $hotel->faqs;
+        if (! $isAdminRequest) {
+            $faqs = $faqs->where('is_active', true);
+        }
+
+        return $faqs->sortBy('sort_order')->values()->map(fn (Faq $faq) => self::faq($faq, $isAdminRequest))->all();
+    }
+
+    public static function faq(Faq $faq, bool $includeAdminFields = false): array
+    {
+        $item = [
+            'id' => $faq->id,
+            'question' => $faq->question,
+            'answer' => $faq->answer,
+            'question_ar' => $faq->question_ar,
+            'answer_ar' => $faq->answer_ar,
+            'slug' => $faq->slug,
+            'meta_title' => $faq->meta_title,
+            'meta_description' => $faq->meta_description,
+            'meta_title_ar' => $faq->meta_title_ar,
+            'meta_description_ar' => $faq->meta_description_ar,
+            'canonical_url' => $faq->canonical_url,
+        ];
+
+        if ($includeAdminFields) {
+            $item['sort_order'] = $faq->sort_order;
+            $item['is_active'] = (bool) $faq->is_active;
+        }
+
+        return $item;
+    }
+
+    public static function faqSchema(array $faqs): ?array
+    {
+        $entities = collect($faqs)
+            ->filter(fn (array $faq) => ! empty($faq['question']) && ! empty($faq['answer']))
+            ->map(fn (array $faq) => [
+                '@type' => 'Question',
+                'name' => $faq['question'],
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => trim(strip_tags($faq['answer'])),
+                ],
+            ])
+            ->values()
+            ->all();
+
+        if (empty($entities)) {
+            return null;
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => $entities,
+        ];
+    }
+
+    public static function faqPage(Hotel $hotel, Faq $faq): array
+    {
+        $faqData = self::faq($faq);
+
+        return [
+            'property' => [
+                'id' => $hotel->id,
+                'name' => $hotel->name,
+                'slug' => $hotel->slug,
+                'cover_image_url' => $hotel->relationLoaded('images') ? self::pickCoverImage($hotel->images)?->image : null,
+            ],
+            'faq' => $faqData,
+            'seo' => [
+                'title' => $faq->meta_title ?: $faq->question,
+                'description' => $faq->meta_description ?: str($faq->answer)->stripTags()->limit(160)->toString(),
+                'title_ar' => $faq->meta_title_ar ?: $faq->question_ar,
+                'description_ar' => $faq->meta_description_ar ?: ($faq->answer_ar ? str($faq->answer_ar)->stripTags()->limit(160)->toString() : null),
+                'canonical_url' => $faq->canonical_url,
+                'robots' => 'index,follow',
+            ],
+            'faq_schema' => self::faqSchema([$faqData]),
+        ];
     }
 
     public static function computeReadinessErrors(Hotel $hotel): array

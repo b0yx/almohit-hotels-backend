@@ -174,7 +174,7 @@ class CrudController extends Controller
             \App\Models\RoomType::class => ['images', 'prices'],
             \App\Models\HotelService::class => ['images', 'hotel', 'category'],
             \App\Models\BookingInquiry::class => ['hotel', 'roomType', 'guests'],
-            \App\Models\Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'],
+            \App\Models\Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'],
             default => [],
         };
     }

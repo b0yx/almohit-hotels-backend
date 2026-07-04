@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Hotel extends Model
 {
@@ -25,6 +26,11 @@ class Hotel extends Model
     public function amenities(): BelongsToMany
     {
         return $this->belongsToMany(HotelAmenity::class, 'hotel_amenity_hotel');
+    }
+
+    public function faqs(): MorphMany
+    {
+        return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
     }
 
     public function assignedStaff(): BelongsToMany
