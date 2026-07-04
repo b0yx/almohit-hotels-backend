@@ -211,7 +211,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
-        $hotel->load(['amenities', 'images']);
+        $hotel->load(['amenities', 'images', 'faqs']);
 
         AuditService::log('published', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'published']]);
 
@@ -227,7 +227,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
-        $hotel->load(['amenities', 'images']);
+        $hotel->load(['amenities', 'images', 'faqs']);
 
         AuditService::log('unpublished', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
@@ -243,7 +243,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
-        $hotel->load(['amenities', 'images']);
+        $hotel->load(['amenities', 'images', 'faqs']);
 
         AuditService::log('archived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'archived']]);
 
@@ -259,7 +259,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
-        $hotel->load(['amenities', 'images']);
+        $hotel->load(['amenities', 'images', 'faqs']);
 
         AuditService::log('unarchived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
@@ -375,6 +375,14 @@ class HotelController extends CrudController
             'faqs.*.id' => ['sometimes', 'nullable', 'integer', 'exists:faqs,id'],
             'faqs.*.question' => ['required_with:faqs', 'string', 'max:255'],
             'faqs.*.answer' => ['required_with:faqs', 'string'],
+            'faqs.*.question_ar' => ['nullable', 'string', 'max:255'],
+            'faqs.*.answer_ar' => ['nullable', 'string'],
+            'faqs.*.slug' => ['nullable', 'string', 'max:255'],
+            'faqs.*.meta_title' => ['nullable', 'string', 'max:70'],
+            'faqs.*.meta_description' => ['nullable', 'string', 'max:180'],
+            'faqs.*.meta_title_ar' => ['nullable', 'string', 'max:70'],
+            'faqs.*.meta_description_ar' => ['nullable', 'string', 'max:180'],
+            'faqs.*.canonical_url' => ['nullable', 'string', 'max:500'],
             'faqs.*.sort_order' => ['nullable', 'integer'],
             'faqs.*.is_active' => ['sometimes', 'boolean'],
         ]);
@@ -383,7 +391,7 @@ class HotelController extends CrudController
     private function extractNestedHotelPayload(array &$data): array
     {
         $nested = [];
-        foreach (['policy', 'social_media', 'contacts'] as $key) {
+        foreach (['policy', 'social_media', 'contacts', 'faqs'] as $key) {
             if (array_key_exists($key, $data)) {
                 $nested[$key] = is_array($data[$key]) ? $data[$key] : [];
                 unset($data[$key]);
@@ -415,6 +423,10 @@ class HotelController extends CrudController
                 ['hotel_id' => $hotel->id],
                 $this->filterContactsPayload($nested['contacts'])
             );
+        }
+
+        if (array_key_exists('faqs', $nested)) {
+            FaqService::syncFaqs($hotel, $nested['faqs']);
         }
     }
 
@@ -533,7 +545,7 @@ class HotelController extends CrudController
         }
 
         $this->update($request, $id);
-        $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities', 'reviews'])->findOrFail($id);
+        $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'amenities', 'reviews', 'faqs'])->findOrFail($id);
         $setup = $hotel->setupStatus;
 
         if ($setup && $request->has('last_completed_step')) {
@@ -560,7 +572,7 @@ class HotelController extends CrudController
             return $error;
         }
 
-        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'])->findOrFail($id);
+        $hotel = Hotel::query()->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])->findOrFail($id);
 
         return response()->json([
             'property' => CompatResponse::hotel($hotel),
@@ -697,8 +709,31 @@ class HotelController extends CrudController
         return response()->json([
             'subdomain' => $request->attributes->get('public_hotel_subdomain'),
             'status' => $request->attributes->get('public_hotel_status'),
-            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing('images')) : null,
+            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing(['images', 'faqs'])) : null,
         ]);
+    }
+
+    public function faqShow(Request $request, int $id, string $faq): JsonResponse
+    {
+        $hotel = Hotel::query()->with(['images', 'faqs'])->findOrFail($id);
+        $user = $request->user();
+
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            abort_unless($hotel->is_active && $hotel->publishing_status === 'published', 404);
+        } else {
+            $this->authorizeStaffHotelAccess($request, $id);
+        }
+
+        $faqQuery = $hotel->faqs();
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            $faqQuery->where('is_active', true);
+        }
+
+        $faqModel = ctype_digit($faq)
+            ? $faqQuery->whereKey((int) $faq)->firstOrFail()
+            : $faqQuery->where('slug', $faq)->firstOrFail();
+
+        return response()->json(CompatResponse::faqPage($hotel, $faqModel));
     }
 
     public function publicRooms(Request $request, string $property): JsonResponse

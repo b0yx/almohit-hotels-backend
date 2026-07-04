@@ -102,6 +102,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::post('/properties/{id}/unarchive/', [HotelController::class, 'unarchive']);
     Route::get('/properties/{id}/readiness/', [HotelController::class, 'readiness']);
     Route::get('/properties/{id}/setup-status/', [HotelController::class, 'setupStatus']);
+    Route::get('/properties/{id}/faqs/{faq}/', [HotelController::class, 'faqShow']);
     Route::patch('/properties/{id}/autosave/', [HotelController::class, 'autosave']);
     Route::get('/properties/{id}/workspace/', [HotelController::class, 'workspace']);
     Route::get('/properties/{id}/rooms/search/', [HotelController::class, 'roomsSearch']);

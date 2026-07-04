@@ -31,11 +31,6 @@ class Hotel extends Model
         ];
     }
 
-    public function faqs(): MorphMany
-    {
-        return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
-    }
-
     public function amenities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
@@ -44,6 +39,11 @@ class Hotel extends Model
     public function facilities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
+    }
+
+    public function faqs(): MorphMany
+    {
+        return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
     }
 
     public function assignedStaff(): BelongsToMany
