@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\BookingInquiry;
+use App\Models\ContactMessage;
+use App\Models\FacilityCategory;
 use App\Models\Hotel;
 use App\Models\PasswordResetOtp;
+use App\Models\Review;
+use App\Models\RoomPrice;
 use App\Models\RoomType;
-use App\Models\ServiceCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -327,22 +330,22 @@ class AuditCoverageTest extends TestCase
         ]);
     }
 
-    public function test_audit_on_hotel_amenity_crud(): void
+    public function test_audit_on_facility_crud_via_old_amenity_route(): void
     {
         $r = $this->postJson('/api/property-amenities/', [
             'name' => 'WiFi',
         ], $this->auth($this->adminToken))->assertCreated();
 
-        $amenityId = $r->json('id');
+        $facilityId = $r->json('id');
         $this->assertDatabaseHas('audit_logs', [
-            'action' => 'created', 'content_type' => 'hotel_amenity', 'object_id' => (string) $amenityId,
+            'action' => 'created', 'content_type' => 'facility', 'object_id' => (string) $facilityId,
         ]);
 
-        $this->deleteJson("/api/property-amenities/{$amenityId}/", [], $this->auth($this->adminToken))
+        $this->deleteJson("/api/property-amenities/{$facilityId}/", [], $this->auth($this->adminToken))
             ->assertStatus(204);
 
         $this->assertDatabaseHas('audit_logs', [
-            'action' => 'deleted', 'content_type' => 'hotel_amenity', 'object_id' => (string) $amenityId,
+            'action' => 'deleted', 'content_type' => 'facility', 'object_id' => (string) $facilityId,
         ]);
     }
 
@@ -361,29 +364,29 @@ class AuditCoverageTest extends TestCase
         ]);
     }
 
-    public function test_audit_on_service_category_crud(): void
+    public function test_audit_on_facility_category_crud(): void
     {
-        $r = $this->postJson('/api/service-categories/', [
+        $r = $this->postJson('/api/facility-categories/', [
             'name' => 'Spa',
         ], $this->auth($this->adminToken))->assertCreated();
 
         $catId = $r->json('id');
         $this->assertDatabaseHas('audit_logs', [
-            'action' => 'created', 'content_type' => 'service_category', 'object_id' => (string) $catId,
+            'action' => 'created', 'content_type' => 'facility_category', 'object_id' => (string) $catId,
         ]);
     }
 
-    public function test_audit_on_hotel_service_crud(): void
+    public function test_audit_on_facility_crud(): void
     {
-        $cat = ServiceCategory::create(['name' => 'Wellness']);
+        $cat = FacilityCategory::create(['name' => 'Wellness']);
 
-        $r = $this->postJson('/api/property-services/', [
-            'name' => 'Pool', 'hotel_id' => $this->hotel->id, 'service_category_id' => $cat->id,
+        $r = $this->postJson('/api/facilities/', [
+            'name' => 'Pool', 'facility_category_id' => $cat->id,
         ], $this->auth($this->adminToken))->assertCreated();
 
         $svcId = $r->json('id');
         $this->assertDatabaseHas('audit_logs', [
-            'action' => 'created', 'content_type' => 'hotel_service', 'object_id' => (string) $svcId,
+            'action' => 'created', 'content_type' => 'facility', 'object_id' => (string) $svcId,
         ]);
     }
 

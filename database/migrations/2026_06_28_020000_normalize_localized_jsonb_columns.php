@@ -19,10 +19,10 @@ return new class extends Migration
         $this->normalizeColumn('hotels', 'short_description', 'varchar(300)', 'short_description_ar', false);
         $this->normalizeColumn('room_types', 'name', 'varchar(255)', 'name_ar', false);
         $this->normalizeColumn('room_types', 'description', 'text', 'description_ar', true);
-        $this->normalizeColumn('hotel_amenities', 'name', 'varchar(100)', 'name_ar', false);
-        $this->normalizeColumn('hotel_services', 'name', 'varchar(255)', 'name_ar', false);
-        $this->normalizeColumn('hotel_services', 'short_description', 'varchar(255)', 'short_description_ar', false);
-        $this->normalizeColumn('hotel_services', 'description', 'text', 'description_ar', true);
+        $this->normalizeColumn('facility_categories', 'name', 'varchar(100)', 'name_ar', false);
+        $this->normalizeColumn('facilities', 'name', 'varchar(255)', 'name_ar', false);
+        $this->normalizeColumn('facilities', 'short_description', 'varchar(255)', 'short_description_ar', false);
+        $this->normalizeColumn('facilities', 'description', 'text', 'description_ar', true);
 
         $this->createScalarUniqueIndexes();
     }
@@ -37,8 +37,8 @@ return new class extends Migration
     {
         foreach ([
             'room_types_hotel_id_name_en_unique',
-            'hotel_amenities_name_en_unique',
-            'hotel_services_hotel_id_name_en_unique',
+            'facility_categories_name_en_unique',
+            'facilities_name_en_unique',
         ] as $index) {
             DB::statement('DROP INDEX IF EXISTS '.$this->quoteIdentifier($index));
         }
@@ -50,12 +50,12 @@ return new class extends Migration
             DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS room_types_hotel_id_name_unique ON "room_types" ("hotel_id", "name")');
         }
 
-        if (Schema::hasTable('hotel_amenities')) {
-            DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS hotel_amenities_name_unique ON "hotel_amenities" ("name")');
+        if (Schema::hasTable('facility_categories')) {
+            DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS facility_categories_name_unique ON "facility_categories" ("name")');
         }
 
-        if (Schema::hasTable('hotel_services')) {
-            DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS hotel_services_hotel_id_name_unique ON "hotel_services" ("hotel_id", "name")');
+        if (Schema::hasTable('facilities')) {
+            DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS facilities_name_unique ON "facilities" ("name")');
         }
     }
 

@@ -3,12 +3,12 @@
 namespace App\Support;
 
 use App\Models\BookingInquiry;
+use App\Models\Facility;
 use App\Models\Currency;
 use App\Models\ExchangeRate;
 use App\Models\Favorite;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
-use App\Models\HotelService;
 use App\Models\Review;
 use App\Models\RoomType;
 use App\Models\User;
@@ -41,7 +41,7 @@ class CompatResponse
             $model instanceof ExchangeRate => self::exchangeRate($model),
             $model instanceof Hotel => self::hotel($model),
             $model instanceof RoomType => self::roomType($model),
-            $model instanceof HotelService => self::service($model),
+            $model instanceof Facility => self::facility($model),
             $model instanceof BookingInquiry => self::booking($model),
             $model instanceof Review => self::review($model),
             $model instanceof Favorite => self::favorite($model),
@@ -169,6 +169,7 @@ class CompatResponse
             'website' => $hotel->website,
             'stars' => $hotel->stars,
             'description' => $hotel->description ?? '',
+            'details' => $hotel->details ?? '',
             'description_ar' => $hotel->description_ar,
             'short_description' => $hotel->short_description,
             'short_description_ar' => $hotel->short_description_ar,
@@ -268,19 +269,19 @@ class CompatResponse
         return LocalizedMapper::mapOutput($room, $data);
     }
 
-    public static function service(HotelService $service): array
+    public static function facility(Facility $facility): array
     {
-        $data = array_merge(self::genericAlias($service, [
-            'property' => 'hotel_id',
-            'category' => 'service_category_id',
-        ]), [
-            'property_name' => $service->hotel?->name,
-            'category_name' => $service->category?->name,
-            'cover_image_url' => null,
-            'images' => [],
+        $data = self::genericAlias($facility, [
+            'category' => 'facility_category_id',
         ]);
 
-        return LocalizedMapper::mapOutput($service, $data);
+        $data = array_merge($data, [
+            'category_name' => $facility->category?->name,
+            'cover_image_url' => null,
+            'images' => $facility->relationLoaded('images') ? self::sortGalleryImages($facility->images)->map(fn ($i) => self::genericAlias($i, ['facility' => 'facility_id']))->values() : [],
+        ]);
+
+        return LocalizedMapper::mapOutput($facility, $data);
     }
 
     public static function booking(BookingInquiry $booking): array
@@ -321,7 +322,7 @@ class CompatResponse
 
     public static function generic(Model $model): array
     {
-        $data = collect($model->toArray())->except(['hotel_id', 'service_category_id', 'hotel_service_id'])->all();
+        $data = collect($model->toArray())->except(['hotel_id', 'facility_category_id', 'facility_id'])->all();
 
         if (! empty($data['icon'])) {
             $data['icon_url'] = $data['icon'];

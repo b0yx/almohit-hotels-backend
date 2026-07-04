@@ -2,35 +2,70 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-
-class HotelService extends Model
+class HotelService extends Facility
 {
-    protected $guarded = ['id'];
+    private ?int $pendingHotelId = null;
 
-    protected function casts(): array
+    public function fill(array $attributes)
     {
-        return [
-            'advance_booking_required' => 'boolean',
-            'is_featured' => 'boolean',
-            'is_active' => 'boolean',
-        ];
+        if (array_key_exists('hotel_id', $attributes)) {
+            $this->pendingHotelId = $attributes['hotel_id'] ? (int) $attributes['hotel_id'] : null;
+            unset($attributes['hotel_id']);
+        }
+
+        if (array_key_exists('service_category_id', $attributes)) {
+            $attributes['facility_category_id'] = $attributes['service_category_id'];
+            unset($attributes['service_category_id']);
+        }
+
+        return parent::fill($attributes);
     }
 
-    public function hotel(): BelongsTo
+    public function setAttribute($key, $value)
     {
-        return $this->belongsTo(Hotel::class);
+        if ($key === 'hotel_id') {
+            $this->pendingHotelId = $value ? (int) $value : null;
+
+            return $this;
+        }
+
+        if ($key === 'service_category_id') {
+            return parent::setAttribute('facility_category_id', $value);
+        }
+
+        return parent::setAttribute($key, $value);
     }
 
-    public function category(): BelongsTo
+    public function save(array $options = [])
     {
-        return $this->belongsTo(ServiceCategory::class, 'service_category_id');
+        $hotelId = $this->pendingHotelId;
+        $saved = parent::save($options);
+
+        if ($saved && $hotelId) {
+            $this->hotels()->syncWithoutDetaching([$hotelId]);
+        }
+
+        return $saved;
     }
 
-    public function images(): HasMany
+    protected static function booted(): void
     {
-        return $this->hasMany(ServiceImage::class, 'hotel_service_id');
+        static::creating(function (HotelService $service): void {
+            if (array_key_exists('hotel_id', $service->attributes)) {
+                $service->pendingHotelId = (int) $service->attributes['hotel_id'];
+                unset($service->attributes['hotel_id']);
+            }
+
+            if (array_key_exists('service_category_id', $service->attributes)) {
+                $service->attributes['facility_category_id'] = $service->attributes['service_category_id'];
+                unset($service->attributes['service_category_id']);
+            }
+        });
+
+        static::created(function (HotelService $service): void {
+            if ($service->pendingHotelId) {
+                $service->hotels()->syncWithoutDetaching([$service->pendingHotelId]);
+            }
+        });
     }
 }

@@ -38,7 +38,12 @@ class Hotel extends Model
 
     public function amenities(): BelongsToMany
     {
-        return $this->belongsToMany(HotelAmenity::class, 'hotel_amenity_hotel');
+        return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
+    }
+
+    public function facilities(): BelongsToMany
+    {
+        return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
     }
 
     public function assignedStaff(): BelongsToMany
@@ -61,9 +66,9 @@ class Hotel extends Model
         return $this->hasMany(RoomType::class);
     }
 
-    public function services(): HasMany
+    public function services(): BelongsToMany
     {
-        return $this->hasMany(HotelService::class);
+        return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
     }
 
     public function reviews(): HasMany
