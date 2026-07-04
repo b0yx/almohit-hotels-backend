@@ -3,9 +3,9 @@
 namespace App\Support;
 
 use App\Models\BookingInquiry;
+use App\Models\Facility;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
-use App\Models\HotelService;
 use App\Models\Review;
 use App\Models\RoomType;
 use App\Models\User;
@@ -36,7 +36,7 @@ class CompatResponse
             $model instanceof User => self::user($model),
             $model instanceof Hotel => self::hotel($model),
             $model instanceof RoomType => self::roomType($model),
-            $model instanceof HotelService => self::service($model),
+            $model instanceof Facility => self::facility($model),
             $model instanceof BookingInquiry => self::booking($model),
             $model instanceof Review => self::review($model),
             default => self::generic($model),
@@ -105,6 +105,7 @@ class CompatResponse
             'website' => $hotel->website,
             'stars' => $hotel->stars,
             'description' => $hotel->description ?? '',
+            'details' => $hotel->details ?? '',
             'short_description' => $hotel->short_description,
             'timezone' => $hotel->timezone,
             'languages_spoken' => $hotel->languages_spoken ?: [],
@@ -176,16 +177,16 @@ class CompatResponse
         ]);
     }
 
-    public static function service(HotelService $service): array
+    public static function facility(Facility $facility): array
     {
-        return array_merge(self::genericAlias($service, [
-            'property' => 'hotel_id',
-            'category' => 'service_category_id',
-        ]), [
-            'property_name' => $service->hotel?->name,
-            'category_name' => $service->category?->name,
+        $data = self::genericAlias($facility, [
+            'category' => 'facility_category_id',
+        ]);
+
+        return array_merge($data, [
+            'category_name' => $facility->category?->name,
             'cover_image_url' => null,
-            'images' => [],
+            'images' => $facility->relationLoaded('images') ? self::sortGalleryImages($facility->images)->map(fn ($i) => self::genericAlias($i, ['facility' => 'facility_id']))->values() : [],
         ]);
     }
 
@@ -211,7 +212,7 @@ class CompatResponse
 
     public static function generic(Model $model): array
     {
-        $data = collect($model->toArray())->except(['hotel_id', 'service_category_id', 'hotel_service_id'])->all();
+        $data = collect($model->toArray())->except(['hotel_id', 'facility_category_id', 'facility_id'])->all();
 
         if (! empty($data['icon'])) {
             $data['icon_url'] = $data['icon'];

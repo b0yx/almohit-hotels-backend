@@ -29,10 +29,32 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('hotel_amenities', function (Blueprint $table) {
+        Schema::create('facility_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->unique();
+            $table->string('slug', 120)->nullable()->unique();
+            $table->text('description')->nullable();
             $table->string('icon')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('facilities', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('facility_category_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('name')->unique();
+            $table->string('slug')->nullable()->unique();
+            $table->string('short_description')->default('');
+            $table->text('description')->nullable();
+            $table->string('icon')->nullable();
+            $table->decimal('price', 10, 2)->default(0);
+            $table->string('currency', 10)->default('USD');
+            $table->string('pricing_type', 20)->default('included');
+            $table->unsignedSmallInteger('duration_minutes')->nullable();
+            $table->time('available_from')->nullable();
+            $table->time('available_until')->nullable();
+            $table->boolean('advance_booking_required')->default(false);
+            $table->boolean('is_featured')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -51,6 +73,7 @@ return new class extends Migration
             $table->string('website')->default('');
             $table->unsignedSmallInteger('stars')->default(3);
             $table->text('description')->nullable();
+            $table->longText('details')->nullable();
             $table->string('short_description', 300)->default('');
             $table->string('timezone', 64)->default('UTC');
             $table->json('languages_spoken')->nullable();
@@ -72,10 +95,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('hotel_amenity_hotel', function (Blueprint $table) {
+        Schema::create('facility_hotel', function (Blueprint $table) {
             $table->foreignId('hotel_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('hotel_amenity_id')->constrained()->cascadeOnDelete();
-            $table->primary(['hotel_id', 'hotel_amenity_id']);
+            $table->foreignId('facility_id')->constrained()->cascadeOnDelete();
+            $table->timestamps();
+            $table->primary(['hotel_id', 'facility_id']);
         });
 
         Schema::create('hotel_user_assignments', function (Blueprint $table) {
@@ -174,10 +198,11 @@ return new class extends Migration
             $table->unique(['hotel_id', 'name']);
         });
 
-        Schema::create('hotel_amenity_room_type', function (Blueprint $table) {
+        Schema::create('facility_room_type', function (Blueprint $table) {
             $table->foreignId('room_type_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('hotel_amenity_id')->constrained()->cascadeOnDelete();
-            $table->primary(['room_type_id', 'hotel_amenity_id']);
+            $table->foreignId('facility_id')->constrained()->cascadeOnDelete();
+            $table->timestamps();
+            $table->primary(['room_type_id', 'facility_id']);
         });
 
         Schema::create('availability_blocks', function (Blueprint $table) {
@@ -217,41 +242,9 @@ return new class extends Migration
             $table->unique(['room_type_id', 'season_name', 'start_date', 'end_date']);
         });
 
-        Schema::create('service_categories', function (Blueprint $table) {
+        Schema::create('facility_images', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100)->unique();
-            $table->string('slug', 120)->nullable()->unique();
-            $table->text('description')->nullable();
-            $table->string('icon')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
-
-        Schema::create('hotel_services', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('hotel_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('service_category_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('name');
-            $table->string('slug')->nullable();
-            $table->string('short_description')->default('');
-            $table->text('description')->nullable();
-            $table->decimal('price', 10, 2)->default(0);
-            $table->string('currency', 10)->default('USD');
-            $table->string('pricing_type', 20)->default('on_request');
-            $table->unsignedSmallInteger('duration_minutes')->nullable();
-            $table->time('available_from')->nullable();
-            $table->time('available_until')->nullable();
-            $table->boolean('advance_booking_required')->default(false);
-            $table->boolean('is_featured')->default(false);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->unique(['hotel_id', 'name']);
-            $table->unique(['hotel_id', 'slug']);
-        });
-
-        Schema::create('service_images', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('hotel_service_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('facility_id')->constrained()->cascadeOnDelete();
             $table->string('image');
             $table->string('thumbnail')->nullable();
             $table->string('caption')->default('');
@@ -346,12 +339,12 @@ return new class extends Migration
     {
         foreach ([
             'contact_messages', 'audit_logs', 'reviews', 'booking_guests', 'booking_inquiries',
-            'service_images', 'hotel_services', 'service_categories', 'room_prices',
-            'room_type_images', 'availability_blocks', 'hotel_amenity_room_type',
+            'facility_images', 'room_prices',
+            'room_type_images', 'availability_blocks', 'facility_room_type',
             'room_types', 'channel_manager_connections', 'property_setup_statuses',
             'property_contacts', 'property_social_media', 'hotel_policies',
-            'hotel_images', 'hotel_user_assignments', 'hotel_amenity_hotel',
-            'hotels', 'hotel_amenities', 'email_otps', 'api_tokens',
+            'hotel_images', 'hotel_user_assignments', 'facility_hotel',
+            'hotels', 'facilities', 'facility_categories', 'email_otps', 'api_tokens',
         ] as $table) {
             Schema::dropIfExists($table);
         }

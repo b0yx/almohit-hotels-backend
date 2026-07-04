@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Facility;
+use App\Models\FacilityImage;
 use App\Models\Hotel;
 use App\Models\HotelImage;
-use App\Models\HotelService;
 use App\Models\RoomType;
 use App\Models\RoomTypeImage;
-use App\Models\ServiceImage;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,13 +39,21 @@ class ImageUploadController extends Controller
                 'exists_table' => 'room_types',
                 'dir' => 'room-types',
             ],
+            'facility-images' => [
+                'model' => FacilityImage::class,
+                'foreign_key' => 'facility_id',
+                'request_key' => 'facility',
+                'public_key' => 'facility',
+                'exists_table' => 'facilities',
+                'dir' => 'facilities',
+            ],
             'service-images' => [
-                'model' => ServiceImage::class,
-                'foreign_key' => 'hotel_service_id',
+                'model' => FacilityImage::class,
+                'foreign_key' => 'facility_id',
                 'request_key' => 'service',
-                'public_key' => 'service',
-                'exists_table' => 'hotel_services',
-                'dir' => 'services',
+                'public_key' => 'facility',
+                'exists_table' => 'facilities',
+                'dir' => 'facilities',
             ],
             default => abort(404),
         };
@@ -78,12 +86,16 @@ class ImageUploadController extends Controller
 
         $this->assertImageUploadSucceeded($request);
 
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            return response()->json(['detail' => 'You do not have permission to upload images for this resource.'], 403);
+        }
+
         if ($user && ! $user->isAdmin()) {
             $parentId = (int) $request->input($cfg['request_key']);
             $hasAccess = match ($cfg['dir']) {
                 'hotels' => Hotel::query()->whereKey($parentId)->whereHas('assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
                 'room-types' => RoomType::query()->whereKey($parentId)->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
-                'services' => HotelService::query()->whereKey($parentId)->whereHas('hotel.assignedStaff', fn ($q) => $q->whereKey($user->id))->exists(),
+                'facilities' => Facility::query()->whereKey($parentId)->exists(),
                 default => false,
             };
             if (! $hasAccess) {
@@ -215,7 +227,7 @@ class ImageUploadController extends Controller
         return match ($cfg['dir']) {
             'hotels' => 'hotel_image',
             'room-types' => 'room_type_image',
-            'services' => 'service_image',
+            'facilities' => 'facility_image',
             default => 'image',
         };
     }

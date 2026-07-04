@@ -2,14 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class HotelAmenity extends Model
+class HotelAmenity extends Facility
 {
-    protected $guarded = ['id'];
-
-    protected function casts(): array
-    {
-        return ['is_active' => 'boolean'];
-    }
 }

@@ -19,9 +19,9 @@ class AppServiceProvider extends ServiceProvider
         foreach ([
             storage_path('app/public/hotels'),
             storage_path('app/public/room-types'),
-            storage_path('app/public/services'),
+            storage_path('app/public/facilities'),
             storage_path('app/public/amenities'),
-            storage_path('app/public/service-categories'),
+            storage_path('app/public/facility-categories'),
             storage_path('app/tmp'),
         ] as $directory) {
             if (! is_dir($directory)) {

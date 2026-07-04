@@ -10,11 +10,10 @@ use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
 use App\Models\ChannelManagerConnection;
 use App\Models\ContactMessage;
-use App\Models\HotelAmenity;
-use App\Models\HotelService;
+use App\Models\Facility;
+use App\Models\FacilityCategory;
 use App\Models\RoomPrice;
 use App\Models\RoomType;
-use App\Models\ServiceCategory;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -100,7 +99,6 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{id}/rates/', [HotelController::class, 'rates']);
     Route::match(['get', 'post'], '/properties/{property}/reviews/', [ReviewController::class, 'propertyReviews']);
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
-
     Route::apiResource('bookings', BookingController::class)->parameters(['bookings' => 'id']);
     Route::get('/bookings/calendar/', [BookingController::class, 'index']);
     Route::post('/bookings/inquiry/', [BookingController::class, 'inquiry']);
@@ -119,8 +117,11 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::apiResource('room-prices', CrudController::class)->parameters(['room-prices' => 'id']);
     Route::apiResource('room-amenities', CrudController::class)->parameters(['room-amenities' => 'id']);
     Route::apiResource('availability-blocks', CrudController::class)->parameters(['availability-blocks' => 'id']);
+    Route::apiResource('facility-categories', CrudController::class)->parameters(['facility-categories' => 'id']);
+    Route::apiResource('facilities', CrudController::class)->parameters(['facilities' => 'id']);
     Route::apiResource('service-categories', CrudController::class)->parameters(['service-categories' => 'id']);
     Route::apiResource('property-services', CrudController::class)->parameters(['property-services' => 'id']);
+    imageRoutes('facility-images');
     imageRoutes('service-images');
     Route::apiResource('audit-logs', CrudController::class)->parameters(['audit-logs' => 'id'])->only(['index', 'show']);
     Route::apiResource('contact-messages', CrudController::class)->parameters(['contact-messages' => 'id']);
@@ -133,14 +134,16 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         'admins' => User::class,
         'auth.users' => User::class,
         'auth.admins' => User::class,
-        'property-amenities' => HotelAmenity::class,
+        'property-amenities' => Facility::class,
         'channel-manager-connections' => ChannelManagerConnection::class,
         'room-types' => RoomType::class,
         'room-prices' => RoomPrice::class,
-        'room-amenities' => HotelAmenity::class,
+        'room-amenities' => Facility::class,
         'availability-blocks' => AvailabilityBlock::class,
-        'service-categories' => ServiceCategory::class,
-        'property-services' => HotelService::class,
+        'facility-categories' => FacilityCategory::class,
+        'facilities' => Facility::class,
+        'service-categories' => FacilityCategory::class,
+        'property-services' => Facility::class,
         'audit-logs' => AuditLog::class,
         'contact-messages' => ContactMessage::class,
     ];
@@ -151,5 +154,5 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         }
     }
 
-    return new CrudController(HotelAmenity::class);
+    return new CrudController(Facility::class);
 });

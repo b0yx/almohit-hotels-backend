@@ -25,8 +25,8 @@ class CrudController extends Controller
             \App\Models\User::class => self::ADMIN_ONLY,
             \App\Models\AuditLog::class => self::ADMIN_ONLY,
             \App\Models\Hotel::class => self::STAFF_OR_ADMIN,
-            \App\Models\HotelAmenity::class => self::READ_PUBLIC,
-            \App\Models\ServiceCategory::class => self::READ_PUBLIC,
+            \App\Models\Facility::class => self::READ_PUBLIC,
+            \App\Models\FacilityCategory::class => self::READ_PUBLIC,
             \App\Models\ContactMessage::class => self::STAFF_OR_ADMIN,
             \App\Models\BookingInquiry::class => self::STAFF_OR_ADMIN,
             \App\Models\Review::class => self::STAFF_OR_ADMIN,
@@ -104,16 +104,16 @@ class CrudController extends Controller
     protected function modelsWithIcon(): array
     {
         return [
-            \App\Models\HotelAmenity::class,
-            \App\Models\ServiceCategory::class,
+            \App\Models\Facility::class,
+            \App\Models\FacilityCategory::class,
         ];
     }
 
     protected function iconStorageDir(): string
     {
         return match ($this->modelClass) {
-            \App\Models\HotelAmenity::class => 'amenities',
-            \App\Models\ServiceCategory::class => 'service-categories',
+            \App\Models\Facility::class => 'facilities',
+            \App\Models\FacilityCategory::class => 'facility-categories',
             default => 'icons',
         };
     }
@@ -129,6 +129,14 @@ class CrudController extends Controller
             $value = $request->input($field);
             if (is_string($value)) {
                 $data[$field] = in_array(strtolower($value), ['true', '1', 'yes'], true);
+            }
+        }
+
+        if ($this->modelClass === \App\Models\Facility::class) {
+            unset($data['hotel_id']);
+            if (array_key_exists('service_category_id', $data)) {
+                $data['facility_category_id'] = $data['service_category_id'];
+                unset($data['service_category_id']);
             }
         }
 
@@ -172,7 +180,7 @@ class CrudController extends Controller
     {
         return match ($this->modelClass) {
             \App\Models\RoomType::class => ['images', 'prices'],
-            \App\Models\HotelService::class => ['images', 'hotel', 'category'],
+            \App\Models\Facility::class => ['images', 'category'],
             \App\Models\BookingInquiry::class => ['hotel', 'roomType', 'guests'],
             \App\Models\Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus'],
             default => [],
@@ -237,8 +245,9 @@ class CrudController extends Controller
         $aliases = [
             'property' => 'hotel_id',
             'room_type' => 'room_type_id',
-            'service' => 'hotel_service_id',
-            'category' => 'service_category_id',
+            'service' => 'facility_id',
+            'facility' => 'facility_id',
+            'category' => 'facility_category_id',
             'customer' => 'customer_id',
         ];
 
@@ -254,8 +263,12 @@ class CrudController extends Controller
 
     protected function syncManyToMany(Model $model, Request $request): void
     {
-        if ($model instanceof \App\Models\Hotel && $request->has('amenity_ids')) {
-            $model->amenities()->sync($request->input('amenity_ids', []));
+        if ($model instanceof \App\Models\Hotel) {
+            if ($request->has('facility_ids')) {
+                $model->facilities()->sync($request->input('facility_ids', []));
+            } elseif ($request->has('amenity_ids')) {
+                $model->facilities()->sync($request->input('amenity_ids', []));
+            }
         }
     }
 
@@ -264,8 +277,9 @@ class CrudController extends Controller
         $map = [
             'property' => 'hotel_id',
             'room_type' => 'room_type_id',
-            'service' => 'hotel_service_id',
-            'category' => 'service_category_id',
+            'service' => 'facility_id',
+            'facility' => 'facility_id',
+            'category' => 'facility_category_id',
             'status' => 'status',
             'role' => 'role',
             'is_active' => 'is_active',
@@ -273,6 +287,8 @@ class CrudController extends Controller
             'pricing_type' => 'pricing_type',
             'currency' => 'currency',
             'reason' => 'reason',
+            'is_published' => 'is_published',
+            'slug' => 'slug',
         ];
 
         foreach ($map as $param => $column) {
@@ -286,9 +302,10 @@ class CrudController extends Controller
         }
 
         if ($search = $request->query('search')) {
-            $searchColumns = $this->modelClass === \App\Models\User::class
-                ? ['full_name', 'email', 'phone']
-                : ['name', 'full_name', 'email', 'customer_name', 'subject'];
+            $searchColumns = match ($this->modelClass) {
+                \App\Models\User::class => ['full_name', 'email', 'phone'],
+                default => ['name', 'full_name', 'email', 'customer_name', 'subject'],
+            };
 
             $query->where(function ($inner) use ($search, $searchColumns) {
                 foreach ($searchColumns as $column) {

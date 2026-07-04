@@ -22,8 +22,8 @@ return new class extends Migration
             $table->index(['room_type_id', 'is_active'], 'idx_room_type_images_active');
         });
 
-        Schema::table('service_images', function (Blueprint $table) {
-            $table->index(['hotel_service_id', 'is_active'], 'idx_service_images_active');
+        Schema::table('facility_images', function (Blueprint $table) {
+            $table->index(['facility_id', 'is_active'], 'idx_facility_images_active');
         });
 
         Schema::table('contact_messages', function (Blueprint $table) {
@@ -42,8 +42,8 @@ return new class extends Migration
             $table->index(['hotel_id', 'is_active'], 'idx_room_types_hotel_active');
         });
 
-        Schema::table('hotel_services', function (Blueprint $table) {
-            $table->index(['hotel_id', 'is_active', 'is_featured'], 'idx_services_hotel_active_featured');
+        Schema::table('facilities', function (Blueprint $table) {
+            $table->index(['facility_category_id', 'is_active', 'is_featured'], 'idx_facilities_category_active_featured');
         });
     }
 
@@ -56,11 +56,11 @@ return new class extends Migration
             $t->dropIndex('idx_booking_hotel_status');
         });
         Schema::table('room_type_images', fn (Blueprint $t) => $t->dropIndex('idx_room_type_images_active'));
-        Schema::table('service_images', fn (Blueprint $t) => $t->dropIndex('idx_service_images_active'));
+        Schema::table('facility_images', fn (Blueprint $t) => $t->dropIndex('idx_facility_images_active'));
         Schema::table('contact_messages', fn (Blueprint $t) => $t->dropIndex('idx_contact_status'));
         Schema::table('booking_guests', fn (Blueprint $t) => $t->dropIndex('idx_booking_guests_inquiry'));
         Schema::table('hotels', fn (Blueprint $t) => $t->dropIndex('idx_hotels_country_city'));
         Schema::table('room_types', fn (Blueprint $t) => $t->dropIndex('idx_room_types_hotel_active'));
-        Schema::table('hotel_services', fn (Blueprint $t) => $t->dropIndex('idx_services_hotel_active_featured'));
+        Schema::table('facilities', fn (Blueprint $t) => $t->dropIndex('idx_facilities_category_active_featured'));
     }
 };

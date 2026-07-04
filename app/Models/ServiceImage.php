@@ -2,20 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
-class ServiceImage extends Model
+class ServiceImage extends FacilityImage
 {
-    protected $guarded = ['id'];
-
-    protected function casts(): array
-    {
-        return ['is_cover' => 'boolean', 'is_active' => 'boolean'];
-    }
-
-    public function service(): BelongsTo
-    {
-        return $this->belongsTo(HotelService::class, 'hotel_service_id');
-    }
 }
