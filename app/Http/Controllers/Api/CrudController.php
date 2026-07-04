@@ -209,7 +209,7 @@ class CrudController extends Controller
             RoomType::class => ['images', 'prices'],
             Facility::class => ['images', 'category'],
             BookingInquiry::class => ['hotel', 'roomType', 'guests', 'bookingCurrency'],
-            Hotel::class => ['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'],
+            Hotel::class => ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'],
             default => [],
         };
     }

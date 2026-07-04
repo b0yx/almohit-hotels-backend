@@ -131,7 +131,6 @@ class CompatResponse
         $socialMedia = $hotel->relationLoaded('socialMedia') ? $hotel->socialMedia : null;
         $contacts = $hotel->relationLoaded('contacts') ? $hotel->contacts : null;
         $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
-        $amenities = $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [];
         $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
         $readinessErrors = self::computeReadinessErrors($hotel);
         $faqs = self::hotelFaqs($hotel);
@@ -171,7 +170,6 @@ class CompatResponse
             'cover_image_url' => $cover?->image,
             'average_rating' => $avgRating,
             'total_reviews' => $totalReviews,
-            'amenities' => $amenities,
             'images' => $images,
             'faqs' => $faqs,
             'faq_schema' => self::faqSchema($faqs),
@@ -336,7 +334,6 @@ class CompatResponse
             'cover_image_url' => $coverImageUrl,
             'images' => $room->relationLoaded('images') ? self::sortGalleryImages($room->images)->map(fn ($i) => self::generic($i))->values() : [],
             'prices' => $room->relationLoaded('prices') ? $room->prices->map(fn ($p) => self::generic($p))->values() : [],
-            'amenity_details' => [],
         ]);
 
         return LocalizedMapper::mapOutput($room, $data);

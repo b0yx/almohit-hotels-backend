@@ -43,7 +43,7 @@ class BlogPostController extends Controller
     {
         $post = BlogPost::query()
             ->publiclyVisible()
-            ->with(['category', 'author', 'hotel.images', 'hotel.amenities', 'hotel.reviews', 'hotel.policy', 'hotel.socialMedia', 'hotel.contacts', 'hotel.setupStatus', 'faqs'])
+            ->with(['category', 'author', 'hotel.images', 'hotel.reviews', 'hotel.policy', 'hotel.socialMedia', 'hotel.contacts', 'hotel.setupStatus', 'faqs'])
             ->where('slug', $slug)
             ->firstOrFail();
 

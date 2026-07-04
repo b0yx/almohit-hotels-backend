@@ -31,11 +31,6 @@ class Hotel extends Model
         ];
     }
 
-    public function amenities(): BelongsToMany
-    {
-        return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
-    }
-
     public function facilities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();

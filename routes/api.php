@@ -131,7 +131,6 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         Route::apiResource('posts', BlogPostController::class)->parameters(['posts' => 'post']);
     });
 
-    Route::apiResource('property-amenities', CrudController::class)->parameters(['property-amenities' => 'id']);
     imageRoutes('property-images');
     // FUTURE: Channel Manager integration — disabled for MVP
     // Route::apiResource('channel-manager-connections', CrudController::class)->parameters(['channel-manager-connections' => 'id']);
@@ -139,7 +138,6 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/room-types/{id}/rates/', fn (int $id) => response()->json(['room_type' => $id, 'seasonal_prices' => []]));
     imageRoutes('room-type-images');
     Route::apiResource('room-prices', CrudController::class)->parameters(['room-prices' => 'id']);
-    Route::apiResource('room-amenities', CrudController::class)->parameters(['room-amenities' => 'id']);
     Route::apiResource('availability-blocks', CrudController::class)->parameters(['availability-blocks' => 'id']);
     Route::apiResource('facility-categories', CrudController::class)->parameters(['facility-categories' => 'id']);
     Route::apiResource('facilities', CrudController::class)->parameters(['facilities' => 'id']);
@@ -162,11 +160,9 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         'admins' => User::class,
         'auth.users' => User::class,
         'auth.admins' => User::class,
-        'property-amenities' => Facility::class,
         'channel-manager-connections' => ChannelManagerConnection::class,
         'room-types' => RoomType::class,
         'room-prices' => RoomPrice::class,
-        'room-amenities' => Facility::class,
         'availability-blocks' => AvailabilityBlock::class,
         'facility-categories' => FacilityCategory::class,
         'facilities' => Facility::class,

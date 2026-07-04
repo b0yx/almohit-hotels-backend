@@ -125,7 +125,7 @@ class ArabicI18nFieldsTest extends TestCase
             ->assertJsonPath('policy.children_policy_ar', null);
     }
 
-    public function test_room_type_service_and_amenity_crud_support_arabic_fields(): void
+    public function test_room_type_and_service_crud_support_arabic_fields(): void
     {
         $hotel = Hotel::query()->create([
             'name' => 'Arabic Field Hotel',
@@ -179,18 +179,6 @@ class ArabicI18nFieldsTest extends TestCase
             ->assertJsonPath('short_description_ar', null)
             ->assertJsonPath('description_ar', null);
 
-        $amenity = $this->postJson('/api/property-amenities/', [
-            'name' => 'WiFi',
-            'name_ar' => 'واي فاي',
-        ], $this->authHeader());
-
-        $amenity->assertCreated()->assertJsonPath('name_ar', 'واي فاي');
-
-        $this->patchJson('/api/property-amenities/'.$amenity->json('id').'/', [
-            'name_ar' => null,
-        ], $this->authHeader())
-            ->assertOk()
-            ->assertJsonPath('name_ar', null);
     }
 
     public function test_creating_records_without_arabic_fields_still_succeeds(): void
@@ -216,8 +204,5 @@ class ArabicI18nFieldsTest extends TestCase
             'name' => 'Breakfast',
         ], $this->authHeader())->assertCreated();
 
-        $this->postJson('/api/property-amenities/', [
-            'name' => 'Parking',
-        ], $this->authHeader())->assertCreated();
     }
 }

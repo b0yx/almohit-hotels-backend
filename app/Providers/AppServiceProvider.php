@@ -20,7 +20,6 @@ class AppServiceProvider extends ServiceProvider
             storage_path('app/public/hotels'),
             storage_path('app/public/room-types'),
             storage_path('app/public/facilities'),
-            storage_path('app/public/amenities'),
             storage_path('app/public/facility-categories'),
             storage_path('app/tmp'),
         ] as $directory) {

@@ -330,25 +330,6 @@ class AuditCoverageTest extends TestCase
         ]);
     }
 
-    public function test_audit_on_facility_crud_via_old_amenity_route(): void
-    {
-        $r = $this->postJson('/api/property-amenities/', [
-            'name' => 'WiFi',
-        ], $this->auth($this->adminToken))->assertCreated();
-
-        $facilityId = $r->json('id');
-        $this->assertDatabaseHas('audit_logs', [
-            'action' => 'created', 'content_type' => 'facility', 'object_id' => (string) $facilityId,
-        ]);
-
-        $this->deleteJson("/api/property-amenities/{$facilityId}/", [], $this->auth($this->adminToken))
-            ->assertStatus(204);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'action' => 'deleted', 'content_type' => 'facility', 'object_id' => (string) $facilityId,
-        ]);
-    }
-
     public function test_audit_on_room_price_crud(): void
     {
         $room = RoomType::create(['hotel_id' => $this->hotel->id, 'name' => 'Std', 'max_adults' => 2, 'base_price' => 100, 'total_units' => 3]);
