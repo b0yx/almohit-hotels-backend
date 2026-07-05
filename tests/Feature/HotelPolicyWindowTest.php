@@ -135,6 +135,53 @@ class HotelPolicyWindowTest extends TestCase
         ]);
     }
 
+    public function test_age_restriction_and_accepted_payment_methods_are_saved_returned_and_clearable(): void
+    {
+        $response = $this->postJson('/api/properties/', $this->propertyPayload([
+            'age_restriction' => 'Guests must be 18 or older to check in.',
+            'accepted_payment_methods' => 'Cash, Visa, Mastercard',
+            'age_restriction_ar' => 'يجب أن يكون عمر الضيف 18 عاما أو أكثر.',
+            'accepted_payment_methods_ar' => 'نقدا، فيزا، ماستركارد',
+        ]), $this->authHeader());
+
+        $response->assertCreated()
+            ->assertJsonPath('policy.age_restriction', 'Guests must be 18 or older to check in.')
+            ->assertJsonPath('policy.accepted_payment_methods', 'Cash, Visa, Mastercard')
+            ->assertJsonPath('policy.age_restriction_ar', 'يجب أن يكون عمر الضيف 18 عاما أو أكثر.')
+            ->assertJsonPath('policy.accepted_payment_methods_ar', 'نقدا، فيزا، ماستركارد');
+
+        $hotelId = $response->json('id');
+        $this->assertDatabaseHas('hotel_policies', [
+            'hotel_id' => $hotelId,
+            'age_restriction' => 'Guests must be 18 or older to check in.',
+            'accepted_payment_methods' => 'Cash, Visa, Mastercard',
+            'age_restriction_ar' => 'يجب أن يكون عمر الضيف 18 عاما أو أكثر.',
+            'accepted_payment_methods_ar' => 'نقدا، فيزا، ماستركارد',
+        ]);
+
+        $this->patchJson('/api/properties/'.$hotelId.'/', [
+            'policy' => [
+                'age_restriction' => null,
+                'accepted_payment_methods' => '',
+                'age_restriction_ar' => null,
+                'accepted_payment_methods_ar' => '',
+            ],
+        ], $this->authHeader())
+            ->assertOk()
+            ->assertJsonPath('policy.age_restriction', '')
+            ->assertJsonPath('policy.accepted_payment_methods', '')
+            ->assertJsonPath('policy.age_restriction_ar', null)
+            ->assertJsonPath('policy.accepted_payment_methods_ar', null);
+
+        $this->assertDatabaseHas('hotel_policies', [
+            'hotel_id' => $hotelId,
+            'age_restriction' => '',
+            'accepted_payment_methods' => '',
+            'age_restriction_ar' => null,
+            'accepted_payment_methods_ar' => null,
+        ]);
+    }
+
     public function test_invalid_policy_window_times_return_validation_errors(): void
     {
         $this->postJson('/api/properties/', $this->propertyPayload([

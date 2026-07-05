@@ -16,10 +16,28 @@ class ReviewController extends CrudController
         parent::__construct(Review::class);
     }
 
+    private function publicHotelForRequest(Request $request, int $property): ?Hotel
+    {
+        $hotel = Hotel::query()->whereKey($property)->first();
+        $publicHotel = $request->attributes->get('public_hotel');
+
+        if (! $hotel || ($publicHotel && (int) $publicHotel->id !== (int) $hotel->id)) {
+            return null;
+        }
+
+        $user = $request->user();
+        if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            if (! $hotel->is_active || $hotel->publishing_status !== 'published') {
+                return null;
+            }
+        }
+
+        return $hotel;
+    }
+
     public function propertyReviews(Request $request, int $property): JsonResponse
     {
-        $hotelExists = Hotel::query()->whereKey($property)->exists();
-        if (! $hotelExists) {
+        if (! $this->publicHotelForRequest($request, $property)) {
             return response()->json(['detail' => 'Hotel not found.'], 404);
         }
 
@@ -52,10 +70,9 @@ class ReviewController extends CrudController
         return response()->json(CompatResponse::page($page));
     }
 
-    public function summary(int $property): JsonResponse
+    public function summary(Request $request, int $property): JsonResponse
     {
-        $hotelExists = Hotel::query()->whereKey($property)->exists();
-        if (! $hotelExists) {
+        if (! $this->publicHotelForRequest($request, $property)) {
             return response()->json(['detail' => 'Hotel not found.'], 404);
         }
 

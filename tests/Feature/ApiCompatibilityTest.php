@@ -57,6 +57,50 @@ class ApiCompatibilityTest extends TestCase
             ->assertJsonPath('property.subdomain', 'demo');
     }
 
+
+    public function test_public_hotel_subdomain_scopes_public_property_content(): void
+    {
+        $alpha = Hotel::query()->create([
+            'name' => 'Alpha Hotel',
+            'slug' => 'alpha-hotel',
+            'subdomain' => 'alpha',
+            'publishing_status' => 'published',
+            'is_active' => true,
+        ]);
+        $beta = Hotel::query()->create([
+            'name' => 'Beta Hotel',
+            'slug' => 'beta-hotel',
+            'subdomain' => 'beta',
+            'publishing_status' => 'published',
+            'is_active' => true,
+        ]);
+        RoomType::query()->create([
+            'hotel_id' => $beta->id,
+            'name' => 'Beta Room',
+            'max_adults' => 2,
+            'base_price' => 100,
+            'total_units' => 1,
+        ]);
+
+        $this->withHeader('X-Hotel-Subdomain', 'alpha')
+            ->getJson('/api/properties/available/')
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJsonPath('results.0.id', $alpha->id);
+
+        $this->withHeader('X-Hotel-Subdomain', 'alpha')
+            ->getJson('/api/properties/'.$beta->id.'/')
+            ->assertNotFound();
+
+        $this->withHeader('X-Hotel-Subdomain', 'alpha')
+            ->getJson('/api/properties/'.$beta->id.'/rooms')
+            ->assertNotFound();
+
+        $this->withHeader('X-Hotel-Subdomain', 'alpha')
+            ->getJson('/api/properties/'.$beta->id.'/reviews/summary/')
+            ->assertNotFound();
+    }
+
     public function test_booking_inquiry_returns_normalized_response(): void
     {
         $hotel = Hotel::query()->create([

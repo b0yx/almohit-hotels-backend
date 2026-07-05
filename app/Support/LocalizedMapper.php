@@ -15,7 +15,7 @@ class LocalizedMapper
         Hotel::class => ['name', 'description', 'short_description', 'meta_title', 'meta_description'],
         RoomType::class => ['name', 'description'],
         HotelService::class => ['name', 'short_description', 'description'],
-        HotelPolicy::class => ['cancellation_policy', 'children_policy', 'pet_policy', 'smoking_policy', 'extra_bed_policy'],
+        HotelPolicy::class => ['cancellation_policy', 'children_policy', 'pet_policy', 'smoking_policy', 'extra_bed_policy', 'age_restriction', 'accepted_payment_methods'],
         BlogPost::class => ['meta_title', 'meta_description'],
     ];
 

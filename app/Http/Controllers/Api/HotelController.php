@@ -48,6 +48,11 @@ class HotelController extends CrudController
 
     private function publicAccessError(Request $request, int $hotelId): ?JsonResponse
     {
+        $publicHotel = $request->attributes->get('public_hotel');
+        if ($publicHotel && (int) $publicHotel->id !== (int) $hotelId) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
+
         $user = $request->user();
         if ($user && ($user->isAdmin() || $user->isStaffRole())) {
             $this->authorizeStaffHotelAccess($request, $hotelId);
@@ -74,6 +79,10 @@ class HotelController extends CrudController
         $user = $request->user();
 
         if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {
+            if ($request->attributes->get('public_hotel') && (int) $request->attributes->get('public_hotel')->id !== (int) $id) {
+                return response()->json(['detail' => 'Hotel not found.'], 404);
+            }
+
             $query = Hotel::query()
                 ->with(['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
                 ->whereKey($id)
@@ -312,6 +321,7 @@ class HotelController extends CrudController
         if ($hotelId) {
             $subdomainRule = $subdomainRule->ignore($hotelId);
         }
+        $reservedSubdomains = config('almohit.reserved_subdomains', []);
 
         $requiredString = fn (int $max) => $isUpdate
             ? ['sometimes', 'required', 'string', "max:{$max}"]
@@ -341,7 +351,14 @@ class HotelController extends CrudController
             'meta_title_ar' => ['nullable', 'string', 'max:60'],
             'meta_description_ar' => ['nullable', 'string', 'max:160'],
             'is_active' => ['sometimes', 'boolean'],
-            'subdomain' => ['nullable', 'string', 'max:63', $subdomainRule],
+            'subdomain' => [
+                'nullable',
+                'string',
+                'max:63',
+                'regex:/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/',
+                Rule::notIn($reservedSubdomains),
+                $subdomainRule,
+            ],
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'website' => ['nullable', 'string', 'max:255'],
@@ -355,11 +372,15 @@ class HotelController extends CrudController
             'policy.pet_policy' => ['nullable', 'string'],
             'policy.smoking_policy' => ['nullable', 'string'],
             'policy.extra_bed_policy' => ['nullable', 'string'],
+            'policy.age_restriction' => ['nullable', 'string'],
+            'policy.accepted_payment_methods' => ['nullable', 'string'],
             'policy.cancellation_policy_ar' => ['nullable', 'string'],
             'policy.children_policy_ar' => ['nullable', 'string'],
             'policy.pet_policy_ar' => ['nullable', 'string'],
             'policy.smoking_policy_ar' => ['nullable', 'string'],
             'policy.extra_bed_policy_ar' => ['nullable', 'string'],
+            'policy.age_restriction_ar' => ['nullable', 'string'],
+            'policy.accepted_payment_methods_ar' => ['nullable', 'string'],
             'policy.important_notes' => ['nullable', 'string'],
             'policy.check_in_from' => $policyTimeRule,
             'policy.check_in_to' => $policyTimeRule,
@@ -440,11 +461,15 @@ class HotelController extends CrudController
             'pet_policy',
             'smoking_policy',
             'extra_bed_policy',
+            'age_restriction',
+            'accepted_payment_methods',
             'cancellation_policy_ar',
             'children_policy_ar',
             'pet_policy_ar',
             'smoking_policy_ar',
             'extra_bed_policy_ar',
+            'age_restriction_ar',
+            'accepted_payment_methods_ar',
             'important_notes',
         ];
 
@@ -713,6 +738,10 @@ class HotelController extends CrudController
 
     public function faqShow(Request $request, int $id, string $faq): JsonResponse
     {
+        if ($error = $this->publicAccessError($request, $id)) {
+            return $error;
+        }
+
         $hotel = Hotel::query()->with(['images', 'faqs'])->findOrFail($id);
         $user = $request->user();
 
@@ -736,6 +765,7 @@ class HotelController extends CrudController
 
     public function publicRooms(Request $request, string $property): JsonResponse
     {
+        $publicHotel = $request->attributes->get('public_hotel');
         $hotel = Hotel::query()
             ->where('publishing_status', 'published')
             ->where('is_active', true)
@@ -747,6 +777,10 @@ class HotelController extends CrudController
                 }
             })
             ->first();
+
+        if ($publicHotel && $hotel && (int) $publicHotel->id !== (int) $hotel->id) {
+            return response()->json(['detail' => 'Hotel not found.'], 404);
+        }
 
         if (! $hotel) {
             return response()->json(['detail' => 'Hotel not found.'], 404);
