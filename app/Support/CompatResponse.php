@@ -134,6 +134,7 @@ class CompatResponse
         $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
         $readinessErrors = self::computeReadinessErrors($hotel);
         $faqs = self::hotelFaqs($hotel);
+        $publicUrls = self::hotelPublicUrls($hotel);
 
         $data = [
             'id' => $hotel->id,
@@ -141,6 +142,9 @@ class CompatResponse
             'name_ar' => $hotel->name_ar,
             'slug' => $hotel->slug,
             'subdomain' => $hotel->subdomain,
+            'public_url' => $publicUrls['public_url'],
+            'public_path_url' => $publicUrls['public_path_url'],
+            'public_subdomain_url' => $publicUrls['public_subdomain_url'],
             'property_type' => $hotel->property_type,
             'country' => $hotel->country,
             'city' => $hotel->city,
@@ -191,6 +195,46 @@ class CompatResponse
         ];
 
         return LocalizedMapper::mapOutput($hotel, $data);
+    }
+
+    private static function hotelPublicUrls(Hotel $hotel): array
+    {
+        $pathUrl = self::hotelPublicPathUrl($hotel);
+        $subdomainUrl = self::hotelPublicSubdomainUrl($hotel);
+        $mode = strtolower((string) config('almohit.public_hotel_url_mode', 'path'));
+
+        return [
+            'public_url' => $mode === 'subdomain' ? ($subdomainUrl ?: $pathUrl) : ($pathUrl ?: $subdomainUrl),
+            'public_path_url' => $pathUrl,
+            'public_subdomain_url' => $subdomainUrl,
+        ];
+    }
+
+    private static function hotelPublicPathUrl(Hotel $hotel): ?string
+    {
+        if (empty($hotel->slug)) {
+            return null;
+        }
+
+        $base = rtrim((string) config('almohit.frontend_public_url', '/'), '/');
+        $prefix = trim((string) config('almohit.public_hotel_path_prefix', 'properties'), '/');
+        $path = trim($prefix.'/'.$hotel->slug, '/');
+
+        return ($base === '' ? '' : $base).'/'.$path.'/';
+    }
+
+    private static function hotelPublicSubdomainUrl(Hotel $hotel): ?string
+    {
+        if (empty($hotel->subdomain)) {
+            return null;
+        }
+
+        $baseDomain = trim((string) config('almohit.public_base_domain', ''), '.');
+        if ($baseDomain === '') {
+            return null;
+        }
+
+        return 'https://'.$hotel->subdomain.'.'.$baseDomain.'/';
     }
 
     public static function genericPolicy(HotelPolicy $policy): array
