@@ -134,6 +134,68 @@ class BlogCmsTest extends TestCase
             ->assertJsonPath('hotel.slug', 'dubai-hotel');
     }
 
+    public function test_public_property_response_includes_linked_published_articles(): void
+    {
+        $hotel = Hotel::query()->create([
+            'name' => 'Article Hotel',
+            'slug' => 'article-hotel',
+            'subdomain' => 'article',
+            'country' => 'UAE',
+            'city' => 'Dubai',
+            'publishing_status' => 'published',
+            'is_active' => true,
+        ]);
+        BlogPost::query()->create($this->payload([
+            'title' => 'Article Hotel Guide',
+            'slug' => 'article-hotel-guide',
+            'hotel_id' => $hotel->id,
+        ]));
+        BlogPost::query()->create($this->payload([
+            'title' => 'Article Hotel Draft',
+            'slug' => 'article-hotel-draft',
+            'status' => BlogPost::STATUS_DRAFT,
+            'hotel_id' => $hotel->id,
+        ]));
+
+        $this->getJson('/api/properties/'.$hotel->id.'/')
+            ->assertOk()
+            ->assertJsonCount(1, 'articles')
+            ->assertJsonPath('articles.0.slug', 'article-hotel-guide')
+            ->assertJsonPath('blog_posts.0.slug', 'article-hotel-guide');
+    }
+
+    public function test_public_blog_index_can_filter_by_linked_hotel(): void
+    {
+        $firstHotel = Hotel::query()->create([
+            'name' => 'First Blog Hotel',
+            'slug' => 'first-blog-hotel',
+            'publishing_status' => 'published',
+            'is_active' => true,
+        ]);
+        $secondHotel = Hotel::query()->create([
+            'name' => 'Second Blog Hotel',
+            'slug' => 'second-blog-hotel',
+            'publishing_status' => 'published',
+            'is_active' => true,
+        ]);
+
+        BlogPost::query()->create($this->payload([
+            'title' => 'First Hotel Article',
+            'slug' => 'first-hotel-article',
+            'hotel_id' => $firstHotel->id,
+        ]));
+        BlogPost::query()->create($this->payload([
+            'title' => 'Second Hotel Article',
+            'slug' => 'second-hotel-article',
+            'hotel_id' => $secondHotel->id,
+        ]));
+
+        $this->getJson('/api/blog/posts/?hotel_id='.$firstHotel->id)
+            ->assertOk()
+            ->assertJsonPath('count', 1)
+            ->assertJsonPath('results.0.slug', 'first-hotel-article');
+    }
+
     public function test_admin_can_create_update_and_delete_blog_post(): void
     {
         $create = $this->postJson('/api/admin/blog/posts/', $this->payload(), $this->authHeader($this->adminToken));

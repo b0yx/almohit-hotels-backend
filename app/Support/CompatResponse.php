@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\BookingInquiry;
+use App\Models\BlogPost;
 use App\Models\Facility;
 use App\Models\Currency;
 use App\Models\ExchangeRate;
@@ -133,6 +134,7 @@ class CompatResponse
         $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
         $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : collect();
         $facilities = $hotel->relationLoaded('facilities') ? $hotel->facilities->map(fn (Facility $facility) => self::facility($facility))->values() : collect();
+        $articles = $hotel->relationLoaded('publicBlogPosts') ? $hotel->publicBlogPosts->map(fn (BlogPost $post) => self::hotelArticle($post))->values() : collect();
         $readinessErrors = self::computeReadinessErrors($hotel);
         $faqs = self::hotelFaqs($hotel);
 
@@ -175,6 +177,8 @@ class CompatResponse
             'facilities' => $facilities,
             'amenities' => $facilities,
             'images' => $images,
+            'articles' => $articles,
+            'blog_posts' => $articles,
             'faqs' => $faqs,
             'faq_schema' => self::faqSchema($faqs),
             'policy' => $policy ? self::genericPolicy($policy) : null,
@@ -195,6 +199,27 @@ class CompatResponse
         ];
 
         return LocalizedMapper::mapOutput($hotel, $data);
+    }
+
+    private static function hotelArticle(BlogPost $post): array
+    {
+        $data = [
+            'id' => $post->id,
+            'title' => $post->title,
+            'slug' => $post->slug,
+            'excerpt' => $post->excerpt,
+            'featured_image' => $post->featured_image,
+            'featured_image_alt' => $post->featured_image_alt,
+            'published_at' => optional($post->published_at)->toJSON(),
+            'locale' => $post->locale,
+            'category' => $post->relationLoaded('category') && $post->category ? [
+                'id' => $post->category->id,
+                'name' => $post->category->name,
+                'slug' => $post->category->slug,
+            ] : null,
+        ];
+
+        return LocalizedMapper::mapOutput($post, $data);
     }
 
     public static function genericPolicy(HotelPolicy $policy): array

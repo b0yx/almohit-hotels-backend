@@ -71,6 +71,13 @@ class Hotel extends Model
         return $this->hasMany(Review::class);
     }
 
+    public function publicBlogPosts(): HasMany
+    {
+        return $this->hasMany(BlogPost::class)
+            ->publiclyVisible()
+            ->latest('published_at');
+    }
+
     public function coverImage(): ?HotelImage
     {
         return $this->images()->where('is_active', true)->orderByDesc('is_cover')->orderBy('display_order')->first();

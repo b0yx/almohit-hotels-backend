@@ -24,7 +24,7 @@ class HotelController extends CrudController
 
     private function hotelEagerLoads(): array
     {
-        return ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs', 'facilities.category', 'facilities.images'];
+        return ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs', 'facilities.category', 'facilities.images', 'publicBlogPosts.category'];
     }
 
     private function authorizeStaffHotelAccess(Request $request, int $hotelId): void
@@ -741,7 +741,7 @@ class HotelController extends CrudController
         return response()->json([
             'subdomain' => $request->attributes->get('public_hotel_subdomain'),
             'status' => $request->attributes->get('public_hotel_status'),
-            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing(['images', 'faqs', 'facilities.category', 'facilities.images'])) : null,
+            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing(['images', 'faqs', 'facilities.category', 'facilities.images', 'publicBlogPosts.category'])) : null,
         ]);
     }
 

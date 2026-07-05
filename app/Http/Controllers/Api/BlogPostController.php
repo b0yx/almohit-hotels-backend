@@ -27,6 +27,10 @@ class BlogPostController extends Controller
             });
         }
 
+        if ($request->query('hotel_id') !== null && $request->query('hotel_id') !== '') {
+            $query->where('hotel_id', $request->query('hotel_id'));
+        }
+
         $this->applySorting($query, $request, 'published_at');
 
         $posts = $query->paginate($this->pageSize($request));
