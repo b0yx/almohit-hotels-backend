@@ -78,37 +78,6 @@
           }
         },
         {
-          "name": "List channel manager connections (admin/staff)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}",
-                "type": "text"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/channel-manager-connections/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "channel-manager-connections"
-              ],
-              "variable": [],
-              "query": []
-            },
-            "description": "List channel manager connections (admin/staff)"
-          }
-        },
-        {
           "name": "List contact messages (admin/staff)",
           "request": {
             "method": "GET",
@@ -1369,38 +1338,6 @@
               "query": []
             },
             "description": "Create a booking (staff/admin)"
-          }
-        },
-        {
-          "name": "Get booking calendar (alias for booking list)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}",
-                "type": "text"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/bookings/calendar/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "bookings",
-                "calendar"
-              ],
-              "variable": [],
-              "query": []
-            },
-            "description": "Get booking calendar (alias for booking list)"
           }
         },
         {

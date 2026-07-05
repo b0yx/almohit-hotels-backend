@@ -6,9 +6,9 @@ The API is documented via OpenAPI 3.0.3 specification and a Postman collection.
 
 | Resource | File | Contents |
 |----------|------|----------|
-| Full API Spec | [`OPENAPI_SPEC.yaml`](OPENAPI_SPEC.yaml) | Complete OpenAPI 3.0.3 spec (56 paths, 15 schemas) |
+| Full API Spec | [`OPENAPI_SPEC.yaml`](OPENAPI_SPEC.yaml) | Complete OpenAPI 3.0.3 spec (60 paths, 15 schemas) |
 | JSON version | [`OPENAPI_SPEC.json`](OPENAPI_SPEC.json) | JSON format for tool imports |
-| Postman Collection | [`POSTMAN_COLLECTION.json`](POSTMAN_COLLECTION.json) | 84 endpoints across 11 folders |
+| Postman Collection | [`POSTMAN_COLLECTION.json`](POSTMAN_COLLECTION.json) | 82 endpoints across 11 folders |
 | Frontend Integration | [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md) | Auth flow, uploads, pagination, errors |
 | MVP Handoff | [`NEXTJS_MVP_HANDOFF.md`](NEXTJS_MVP_HANDOFF.md) | MVP-scoped endpoint reference |
 

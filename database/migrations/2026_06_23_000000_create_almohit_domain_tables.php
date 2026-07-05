@@ -315,7 +315,7 @@ return new class extends Migration
 
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->id();
-            $table->string('action', 20);
+            $table->string('action', 50);
             $table->string('content_type')->default('');
             $table->string('object_id', 64);
             $table->string('object_repr');

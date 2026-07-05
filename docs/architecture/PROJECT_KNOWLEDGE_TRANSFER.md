@@ -425,7 +425,6 @@ Additional indexes on: `reviews` (hotel_id+is_active), `booking_inquiries` (stat
 |--------|-----|------|---------|
 | GET/POST | `/api/bookings/` | Yes | List/create bookings |
 | GET/PUT/PATCH/DELETE | `/api/bookings/{id}/` | Yes | Show/update/delete booking |
-| GET | `/api/bookings/calendar/` | Yes | Booking calendar (= index alias) |
 | POST | `/api/bookings/inquiry/` | No | Submit public inquiry |
 | POST | `/api/bookings/confirm/` | Staff | Confirm booking |
 | POST | `/api/bookings/{id}/cancel/` | Yes | Cancel booking |

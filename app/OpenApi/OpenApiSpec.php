@@ -1434,22 +1434,6 @@ Admin: Any booking.
     )]
     public function route_47() {}
 
-    // ─── Endpoint: Get /api/bookings/calendar/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/bookings/calendar/',
-        summary: 'Get booking calendar (alias for booking list)',
-        description: '',
-        tags: ['Bookings'],
-        security: [['BearerAuth' => []]],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Paginated bookings for calendar'
-            ),
-        ]
-    )]
-    public function route_48() {}
-
     // ─── Endpoint: Get /api/reviews/ ──────────────────────────
     #[OA\Get(
         path: '/api/reviews/',
@@ -2057,22 +2041,6 @@ Admin: Any booking.
         ]
     )]
     public function route_80() {}
-
-    // ─── Endpoint: Get /api/channel-manager-connections/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/channel-manager-connections/',
-        summary: 'List channel manager connections (admin/staff)',
-        description: '',
-        tags: ['Admin'],
-        security: [['BearerAuth' => []]],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Paginated connections'
-            ),
-        ]
-    )]
-    public function route_81() {}
 
     // ─── Endpoint: Get /api/audit-logs/ ──────────────────────────
     #[OA\Get(

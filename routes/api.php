@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
-use App\Models\ChannelManagerConnection;
 use App\Models\ContactMessage;
 use App\Models\HotelAmenity;
 use App\Models\HotelService;
@@ -113,7 +112,6 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
 
     Route::apiResource('bookings', BookingController::class)->parameters(['bookings' => 'id']);
-    Route::get('/bookings/calendar/', [BookingController::class, 'index']);
     Route::post('/bookings/inquiry/', [BookingController::class, 'inquiry']);
     Route::post('/bookings/confirm/', [BookingController::class, 'confirm']);
     Route::post('/bookings/{id}/cancel/', [BookingController::class, 'cancel']);
@@ -134,8 +132,6 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
 
     Route::apiResource('property-amenities', CrudController::class)->parameters(['property-amenities' => 'id']);
     imageRoutes('property-images');
-    // FUTURE: Channel Manager integration — disabled for MVP
-    // Route::apiResource('channel-manager-connections', CrudController::class)->parameters(['channel-manager-connections' => 'id']);
     Route::apiResource('room-types', CrudController::class)->parameters(['room-types' => 'id']);
     Route::get('/room-types/{id}/rates/', fn (int $id) => response()->json(['room_type' => $id, 'seasonal_prices' => []]));
     imageRoutes('room-type-images');
@@ -161,7 +157,6 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         'auth.users' => User::class,
         'auth.admins' => User::class,
         'property-amenities' => HotelAmenity::class,
-        'channel-manager-connections' => ChannelManagerConnection::class,
         'room-types' => RoomType::class,
         'room-prices' => RoomPrice::class,
         'room-amenities' => HotelAmenity::class,
