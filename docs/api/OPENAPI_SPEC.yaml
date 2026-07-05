@@ -1631,16 +1631,6 @@ paths:
         "200":
           description: Booking cancelled
 
-  /api/bookings/calendar/:
-    get:
-      tags: [Bookings]
-      summary: Get booking calendar (alias for booking list)
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: Paginated bookings for calendar
-
   # ─── Reviews (Admin) ─────────────────────────────────────────────────
   /api/reviews/:
     get:
@@ -2061,17 +2051,6 @@ paths:
               properties:
                 service: { type: integer }
                 image: { type: string, format: binary }
-
-  # ─── Channel Manager ─────────────────────────────────────────────────
-  /api/channel-manager-connections/:
-    get:
-      tags: [Admin]
-      summary: List channel manager connections (admin/staff)
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: Paginated connections
 
   # ─── Audit Logs ──────────────────────────────────────────────────────
   /api/audit-logs/:

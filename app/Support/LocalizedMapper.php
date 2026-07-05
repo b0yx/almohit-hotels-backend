@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\BlogPost;
 use App\Models\Hotel;
-use App\Models\HotelAmenity;
 use App\Models\HotelPolicy;
 use App\Models\HotelService;
 use App\Models\RoomType;
@@ -16,7 +15,6 @@ class LocalizedMapper
         Hotel::class => ['name', 'description', 'short_description', 'meta_title', 'meta_description'],
         RoomType::class => ['name', 'description'],
         HotelService::class => ['name', 'short_description', 'description'],
-        HotelAmenity::class => ['name'],
         HotelPolicy::class => ['cancellation_policy', 'children_policy', 'pet_policy', 'smoking_policy', 'extra_bed_policy'],
         BlogPost::class => ['meta_title', 'meta_description'],
     ];

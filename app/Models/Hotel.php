@@ -31,14 +31,14 @@ class Hotel extends Model
         ];
     }
 
+    public function facilities(): BelongsToMany
+    {
+        return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
+    }
+
     public function faqs(): MorphMany
     {
         return $this->morphMany(Faq::class, 'faqable')->orderBy('sort_order');
-    }
-
-    public function amenities(): BelongsToMany
-    {
-        return $this->belongsToMany(HotelAmenity::class, 'hotel_amenity_hotel');
     }
 
     public function assignedStaff(): BelongsToMany
@@ -61,9 +61,9 @@ class Hotel extends Model
         return $this->hasMany(RoomType::class);
     }
 
-    public function services(): HasMany
+    public function services(): BelongsToMany
     {
-        return $this->hasMany(HotelService::class);
+        return $this->belongsToMany(Facility::class, 'facility_hotel')->withTimestamps();
     }
 
     public function reviews(): HasMany

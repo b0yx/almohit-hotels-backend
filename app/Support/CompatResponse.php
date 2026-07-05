@@ -3,12 +3,13 @@
 namespace App\Support;
 
 use App\Models\BookingInquiry;
+use App\Models\Facility;
 use App\Models\Currency;
 use App\Models\ExchangeRate;
+use App\Models\Faq;
 use App\Models\Favorite;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
-use App\Models\HotelService;
 use App\Models\Review;
 use App\Models\RoomType;
 use App\Models\User;
@@ -41,7 +42,7 @@ class CompatResponse
             $model instanceof ExchangeRate => self::exchangeRate($model),
             $model instanceof Hotel => self::hotel($model),
             $model instanceof RoomType => self::roomType($model),
-            $model instanceof HotelService => self::service($model),
+            $model instanceof Facility => self::facility($model),
             $model instanceof BookingInquiry => self::booking($model),
             $model instanceof Review => self::review($model),
             $model instanceof Favorite => self::favorite($model),
@@ -130,29 +131,9 @@ class CompatResponse
         $socialMedia = $hotel->relationLoaded('socialMedia') ? $hotel->socialMedia : null;
         $contacts = $hotel->relationLoaded('contacts') ? $hotel->contacts : null;
         $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
-        $amenities = $hotel->relationLoaded('amenities') ? $hotel->amenities->map(fn ($a) => self::generic($a))->values() : [];
         $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
         $readinessErrors = self::computeReadinessErrors($hotel);
-        $faqs = [];
-        if ($hotel->relationLoaded('faqs')) {
-            $faqList = $hotel->faqs;
-            if (! request()->is('api/admin/*')) {
-                $faqList = $faqList->where('is_active', true);
-            }
-            $faqs = $faqList->sortBy('sort_order')->values()->map(function ($f) {
-                $item = [
-                    'id' => $f->id,
-                    'question' => $f->question,
-                    'answer' => $f->answer,
-                ];
-                if (request()->is('api/admin/*')) {
-                    $item['sort_order'] = $f->sort_order;
-                    $item['is_active'] = (bool) $f->is_active;
-                }
-
-                return $item;
-            })->all();
-        }
+        $faqs = self::hotelFaqs($hotel);
 
         $data = [
             'id' => $hotel->id,
@@ -169,6 +150,7 @@ class CompatResponse
             'website' => $hotel->website,
             'stars' => $hotel->stars,
             'description' => $hotel->description ?? '',
+            'details' => $hotel->details ?? '',
             'description_ar' => $hotel->description_ar,
             'short_description' => $hotel->short_description,
             'short_description_ar' => $hotel->short_description_ar,
@@ -188,9 +170,9 @@ class CompatResponse
             'cover_image_url' => $cover?->image,
             'average_rating' => $avgRating,
             'total_reviews' => $totalReviews,
-            'amenities' => $amenities,
             'images' => $images,
             'faqs' => $faqs,
+            'faq_schema' => self::faqSchema($faqs),
             'policy' => $policy ? self::genericPolicy($policy) : null,
             'social_media' => $socialMedia ? self::generic($socialMedia) : null,
             'contacts' => $contacts ? self::generic($contacts) : null,
@@ -231,6 +213,96 @@ class CompatResponse
         return substr((string) $value, 0, 5);
     }
 
+    private static function hotelFaqs(Hotel $hotel): array
+    {
+        if (! $hotel->relationLoaded('faqs')) {
+            return [];
+        }
+
+        $user = request()->user();
+        $isAdminRequest = $user && ($user->isAdmin() || $user->isStaffRole());
+        $faqs = $hotel->faqs;
+        if (! $isAdminRequest) {
+            $faqs = $faqs->where('is_active', true);
+        }
+
+        return $faqs->sortBy('sort_order')->values()->map(fn (Faq $faq) => self::faq($faq, $isAdminRequest))->all();
+    }
+
+    public static function faq(Faq $faq, bool $includeAdminFields = false): array
+    {
+        $item = [
+            'id' => $faq->id,
+            'question' => $faq->question,
+            'answer' => $faq->answer,
+            'question_ar' => $faq->question_ar,
+            'answer_ar' => $faq->answer_ar,
+            'slug' => $faq->slug,
+            'meta_title' => $faq->meta_title,
+            'meta_description' => $faq->meta_description,
+            'meta_title_ar' => $faq->meta_title_ar,
+            'meta_description_ar' => $faq->meta_description_ar,
+            'canonical_url' => $faq->canonical_url,
+        ];
+
+        if ($includeAdminFields) {
+            $item['sort_order'] = $faq->sort_order;
+            $item['is_active'] = (bool) $faq->is_active;
+        }
+
+        return $item;
+    }
+
+    public static function faqSchema(array $faqs): ?array
+    {
+        $entities = collect($faqs)
+            ->filter(fn (array $faq) => ! empty($faq['question']) && ! empty($faq['answer']))
+            ->map(fn (array $faq) => [
+                '@type' => 'Question',
+                'name' => $faq['question'],
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => trim(strip_tags($faq['answer'])),
+                ],
+            ])
+            ->values()
+            ->all();
+
+        if (empty($entities)) {
+            return null;
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => $entities,
+        ];
+    }
+
+    public static function faqPage(Hotel $hotel, Faq $faq): array
+    {
+        $faqData = self::faq($faq);
+
+        return [
+            'property' => [
+                'id' => $hotel->id,
+                'name' => $hotel->name,
+                'slug' => $hotel->slug,
+                'cover_image_url' => $hotel->relationLoaded('images') ? self::pickCoverImage($hotel->images)?->image : null,
+            ],
+            'faq' => $faqData,
+            'seo' => [
+                'title' => $faq->meta_title ?: $faq->question,
+                'description' => $faq->meta_description ?: str($faq->answer)->stripTags()->limit(160)->toString(),
+                'title_ar' => $faq->meta_title_ar ?: $faq->question_ar,
+                'description_ar' => $faq->meta_description_ar ?: ($faq->answer_ar ? str($faq->answer_ar)->stripTags()->limit(160)->toString() : null),
+                'canonical_url' => $faq->canonical_url,
+                'robots' => 'index,follow',
+            ],
+            'faq_schema' => self::faqSchema([$faqData]),
+        ];
+    }
+
     public static function computeReadinessErrors(Hotel $hotel): array
     {
         $errors = [];
@@ -262,25 +334,24 @@ class CompatResponse
             'cover_image_url' => $coverImageUrl,
             'images' => $room->relationLoaded('images') ? self::sortGalleryImages($room->images)->map(fn ($i) => self::generic($i))->values() : [],
             'prices' => $room->relationLoaded('prices') ? $room->prices->map(fn ($p) => self::generic($p))->values() : [],
-            'amenity_details' => [],
         ]);
 
         return LocalizedMapper::mapOutput($room, $data);
     }
 
-    public static function service(HotelService $service): array
+    public static function facility(Facility $facility): array
     {
-        $data = array_merge(self::genericAlias($service, [
-            'property' => 'hotel_id',
-            'category' => 'service_category_id',
-        ]), [
-            'property_name' => $service->hotel?->name,
-            'category_name' => $service->category?->name,
-            'cover_image_url' => null,
-            'images' => [],
+        $data = self::genericAlias($facility, [
+            'category' => 'facility_category_id',
         ]);
 
-        return LocalizedMapper::mapOutput($service, $data);
+        $data = array_merge($data, [
+            'category_name' => $facility->category?->name,
+            'cover_image_url' => null,
+            'images' => $facility->relationLoaded('images') ? self::sortGalleryImages($facility->images)->map(fn ($i) => self::genericAlias($i, ['facility' => 'facility_id']))->values() : [],
+        ]);
+
+        return LocalizedMapper::mapOutput($facility, $data);
     }
 
     public static function booking(BookingInquiry $booking): array
@@ -321,7 +392,7 @@ class CompatResponse
 
     public static function generic(Model $model): array
     {
-        $data = collect($model->toArray())->except(['hotel_id', 'service_category_id', 'hotel_service_id'])->all();
+        $data = collect($model->toArray())->except(['hotel_id', 'facility_category_id', 'facility_id'])->all();
 
         if (! empty($data['icon'])) {
             $data['icon_url'] = $data['icon'];

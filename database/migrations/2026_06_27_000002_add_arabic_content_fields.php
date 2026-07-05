@@ -22,11 +22,11 @@ return new class extends Migration
             $table->text('extra_bed_policy_ar')->nullable();
         });
 
-        Schema::table('hotel_amenities', function (Blueprint $table) {
+        Schema::table('facility_categories', function (Blueprint $table) {
             $table->string('name_ar', 100)->nullable();
         });
 
-        Schema::table('hotel_services', function (Blueprint $table) {
+        Schema::table('facilities', function (Blueprint $table) {
             $table->string('name_ar')->nullable();
             $table->string('short_description_ar')->nullable();
             $table->text('description_ar')->nullable();
@@ -44,11 +44,11 @@ return new class extends Migration
             $table->dropColumn(['name_ar', 'description_ar']);
         });
 
-        Schema::table('hotel_services', function (Blueprint $table) {
+        Schema::table('facilities', function (Blueprint $table) {
             $table->dropColumn(['name_ar', 'short_description_ar', 'description_ar']);
         });
 
-        Schema::table('hotel_amenities', function (Blueprint $table) {
+        Schema::table('facility_categories', function (Blueprint $table) {
             $table->dropColumn(['name_ar']);
         });
 

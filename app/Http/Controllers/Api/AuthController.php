@@ -48,12 +48,21 @@ class AuthController extends Controller
             'password' => $data['password'],
         ]);
 
-        $code = $this->sendEmailVerificationOtp($user);
+        $code = null;
+        try {
+            $code = $this->sendEmailVerificationOtp($user);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Signup email failed', ['error' => $e->getMessage()]);
+        }
 
         AuditService::log('registered', 'user', $user);
 
         if (app()->environment('local', 'testing')) {
             return response()->json(['detail' => 'Account created. Please check your email for the verification code.', 'debug_code' => $code], 201);
+        }
+
+        if ($code === null) {
+            return response()->json(['detail' => 'Account created but verification email could not be sent. Contact support.'], 201);
         }
 
         return response()->json(['detail' => 'Account created. Please check your email for the verification code.'], 201);
@@ -105,7 +114,11 @@ class AuthController extends Controller
 
         $user = User::query()->where('email', $email)->where('email_verified', false)->first();
         if ($user) {
-            $this->sendEmailVerificationOtp($user);
+            try {
+                $this->sendEmailVerificationOtp($user);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Resend OTP email failed', ['error' => $e->getMessage()]);
+            }
         }
 
         $limiter->hit($resendKey, 60);
@@ -123,7 +136,12 @@ class AuthController extends Controller
         }
 
         if (! $user->email_verified) {
-            $code = $this->sendEmailVerificationOtp($user);
+            $code = null;
+            try {
+                $code = $this->sendEmailVerificationOtp($user);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Login OTP email failed', ['error' => $e->getMessage()]);
+            }
 
             $response = ['code' => 'email_not_verified', 'detail' => 'Please verify your email before signing in.', 'email' => $user->email];
 
@@ -299,8 +317,12 @@ class AuthController extends Controller
                 'expires_at' => now()->addMinutes(10),
             ]);
 
-            app(BrevoMailService::class)->sendOtp($email, 'Reset Your Password', $code, 'password_reset');
-            $debugCode = $code;
+            try {
+                app(BrevoMailService::class)->sendOtp($email, 'Reset Your Password', $code, 'password_reset');
+                $debugCode = $code;
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Forgot-password email failed', ['error' => $e->getMessage()]);
+            }
 
             AuditService::log('password_reset_requested', 'user', $user);
         }

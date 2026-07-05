@@ -27,8 +27,31 @@ class BrevoMailService
         string $textContent,
         ?string $htmlContent = null,
     ): void {
-        if ($this->apiKey === '') {
-            throw new RuntimeException('Brevo API key is not configured.');
+        $provider = env('MAIL_PROVIDER', 'brevo');
+
+        if (app()->environment('testing')) {
+            $provider = 'brevo';
+        }
+
+        if ($provider !== 'brevo' || empty($this->apiKey)) {
+            if ($htmlContent !== null) {
+                \Illuminate\Support\Facades\Mail::html($htmlContent, function ($message) use ($toEmail, $subject) {
+                    $message->to($toEmail)
+                        ->subject($subject);
+                });
+            } else {
+                \Illuminate\Support\Facades\Mail::raw($textContent, function ($message) use ($toEmail, $subject) {
+                    $message->to($toEmail)
+                        ->subject($subject);
+                });
+            }
+
+            Log::debug('Email sent via standard Laravel mailer fallback', [
+                'to' => $toEmail,
+                'subject' => $subject,
+                'provider' => $provider,
+            ]);
+            return;
         }
 
         $payload = [

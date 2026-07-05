@@ -3104,24 +3104,6 @@
                 }
             }
         },
-        "/api/bookings/calendar/": {
-            "get": {
-                "tags": [
-                    "Bookings"
-                ],
-                "summary": "Get booking calendar (alias for booking list)",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Paginated bookings for calendar"
-                    }
-                }
-            }
-        },
         "/api/reviews/": {
             "get": {
                 "tags": [
@@ -3962,24 +3944,6 @@
                                 }
                             }
                         }
-                    }
-                }
-            }
-        },
-        "/api/channel-manager-connections/": {
-            "get": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "List channel manager connections (admin/staff)",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Paginated connections"
                     }
                 }
             }

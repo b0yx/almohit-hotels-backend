@@ -111,7 +111,6 @@ class OpenApiSpec
             new OA\Property(property: 'cover_image_url', type: 'string', nullable: true),
             new OA\Property(property: 'average_rating', type: 'number', nullable: true),
             new OA\Property(property: 'total_reviews', type: 'integer', nullable: false),
-            new OA\Property(property: 'amenities', type: 'array', nullable: false, items: new OA\Items(type: 'string')),
             new OA\Property(property: 'images', type: 'array', nullable: false, items: new OA\Items(type: 'string')),
             new OA\Property(property: 'policy', ref: '#/components/schemas/HotelPolicy', nullable: true),
             new OA\Property(property: 'social_media', type: 'object', nullable: true),
@@ -213,7 +212,6 @@ class OpenApiSpec
             new OA\Property(property: 'cover_image_url', type: 'string', nullable: true),
             new OA\Property(property: 'images', type: 'array', nullable: false, items: new OA\Items(type: 'string')),
             new OA\Property(property: 'prices', type: 'array', nullable: false, items: new OA\Items(type: 'string')),
-            new OA\Property(property: 'amenity_details', type: 'array', nullable: false, items: new OA\Items(type: 'string')),
             new OA\Property(property: 'created_at', type: 'string', nullable: false),
             new OA\Property(property: 'updated_at', type: 'string', nullable: false),
         ]
@@ -319,23 +317,6 @@ class OpenApiSpec
         ]
     )]
     private $ServiceCategory;
-
-    // ─── Schema: HotelAmenity ────────────────────────────────
-    #[OA\Schema(
-        schema: 'HotelAmenity',
-        type: 'object',
-        properties: [
-            new OA\Property(property: 'id', type: 'integer', nullable: false),
-            new OA\Property(property: 'name', type: 'string', nullable: false),
-            new OA\Property(property: 'name_ar', type: 'string', nullable: true),
-            new OA\Property(property: 'icon', type: 'string', nullable: true),
-            new OA\Property(property: 'icon_url', type: 'string', nullable: true),
-            new OA\Property(property: 'is_active', type: 'boolean', nullable: false),
-            new OA\Property(property: 'created_at', type: 'string', nullable: false),
-            new OA\Property(property: 'updated_at', type: 'string', nullable: false),
-        ]
-    )]
-    private $HotelAmenity;
 
     // ─── Schema: HotelService ────────────────────────────────
     #[OA\Schema(
@@ -1434,22 +1415,6 @@ Admin: Any booking.
     )]
     public function route_47() {}
 
-    // ─── Endpoint: Get /api/bookings/calendar/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/bookings/calendar/',
-        summary: 'Get booking calendar (alias for booking list)',
-        description: '',
-        tags: ['Bookings'],
-        security: [['BearerAuth' => []]],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Paginated bookings for calendar'
-            ),
-        ]
-    )]
-    public function route_48() {}
-
     // ─── Endpoint: Get /api/reviews/ ──────────────────────────
     #[OA\Get(
         path: '/api/reviews/',
@@ -1501,95 +1466,6 @@ Admin: Any booking.
         ]
     )]
     public function route_51() {}
-
-    // ─── Endpoint: Get /api/property-amenities/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/property-amenities/',
-        summary: 'List hotel amenities',
-        description: 'Public read, admin/staff write.',
-        tags: ['Amenities'],
-        security: [['BearerAuth' => []]],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Paginated amenity list'
-            ),
-        ]
-    )]
-    public function route_52() {}
-
-    // ─── Endpoint: Post /api/property-amenities/ ──────────────────────────
-    #[OA\Post(
-        path: '/api/property-amenities/',
-        summary: 'Create a hotel amenity (admin/staff)',
-        description: '',
-        tags: ['Amenities'],
-        security: [['BearerAuth' => []]],
-        responses: [
-            new OA\Response(
-                response: '201',
-                description: 'Amenity created'
-            ),
-        ]
-    )]
-    public function route_53() {}
-
-    // ─── Endpoint: Get /api/property-amenities/{id}/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/property-amenities/{id}/',
-        summary: '',
-        description: '',
-        tags: ['Amenities'],
-        security: [['BearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, description: '', schema: new OA\Schema(type: 'string')),
-        ],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Amenity detail'
-            ),
-        ]
-    )]
-    public function route_54() {}
-
-    // ─── Endpoint: Patch /api/property-amenities/{id}/ ──────────────────────────
-    #[OA\Patch(
-        path: '/api/property-amenities/{id}/',
-        summary: '',
-        description: '',
-        tags: ['Amenities'],
-        security: [['BearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, description: '', schema: new OA\Schema(type: 'string')),
-        ],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Amenity updated'
-            ),
-        ]
-    )]
-    public function route_55() {}
-
-    // ─── Endpoint: Delete /api/property-amenities/{id}/ ──────────────────────────
-    #[OA\Delete(
-        path: '/api/property-amenities/{id}/',
-        summary: '',
-        description: '',
-        tags: ['Amenities'],
-        security: [['BearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, description: '', schema: new OA\Schema(type: 'string')),
-        ],
-        responses: [
-            new OA\Response(
-                response: '204',
-                description: 'Amenity deleted'
-            ),
-        ]
-    )]
-    public function route_56() {}
 
     // ─── Endpoint: Get /api/property-images/ ──────────────────────────
     #[OA\Get(
@@ -1885,25 +1761,6 @@ Admin: Any booking.
     )]
     public function route_71() {}
 
-    // ─── Endpoint: Get /api/room-amenities/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/room-amenities/',
-        summary: 'List room amenities (active, unpaginated)',
-        description: '',
-        tags: ['Amenities'],
-        security: [['BearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'is_active', in: 'query', required: false, description: '', schema: new OA\Schema(type: 'string')),
-        ],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Room amenities list'
-            ),
-        ]
-    )]
-    public function route_72() {}
-
     // ─── Endpoint: Get /api/availability-blocks/ ──────────────────────────
     #[OA\Get(
         path: '/api/availability-blocks/',
@@ -2057,22 +1914,6 @@ Admin: Any booking.
         ]
     )]
     public function route_80() {}
-
-    // ─── Endpoint: Get /api/channel-manager-connections/ ──────────────────────────
-    #[OA\Get(
-        path: '/api/channel-manager-connections/',
-        summary: 'List channel manager connections (admin/staff)',
-        description: '',
-        tags: ['Admin'],
-        security: [['BearerAuth' => []]],
-        responses: [
-            new OA\Response(
-                response: '200',
-                description: 'Paginated connections'
-            ),
-        ]
-    )]
-    public function route_81() {}
 
     // ─── Endpoint: Get /api/audit-logs/ ──────────────────────────
     #[OA\Get(

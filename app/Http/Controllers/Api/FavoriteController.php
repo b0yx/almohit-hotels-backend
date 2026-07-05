@@ -24,7 +24,7 @@ class FavoriteController extends Controller
 
         $hotels = Hotel::query()
             ->whereHas('favorites', fn ($q) => $q->where('user_id', $user->id))
-            ->with(['amenities', 'images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
+            ->with(['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
             ->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)])
             ->latest()
             ->paginate($pageSize);

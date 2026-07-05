@@ -14,13 +14,11 @@ use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
-use App\Models\ChannelManagerConnection;
 use App\Models\ContactMessage;
-use App\Models\HotelAmenity;
-use App\Models\HotelService;
+use App\Models\Facility;
+use App\Models\FacilityCategory;
 use App\Models\RoomPrice;
 use App\Models\RoomType;
-use App\Models\ServiceCategory;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -103,6 +101,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::post('/properties/{id}/unarchive/', [HotelController::class, 'unarchive']);
     Route::get('/properties/{id}/readiness/', [HotelController::class, 'readiness']);
     Route::get('/properties/{id}/setup-status/', [HotelController::class, 'setupStatus']);
+    Route::get('/properties/{id}/faqs/{faq}/', [HotelController::class, 'faqShow']);
     Route::patch('/properties/{id}/autosave/', [HotelController::class, 'autosave']);
     Route::get('/properties/{id}/workspace/', [HotelController::class, 'workspace']);
     Route::get('/properties/{id}/rooms/search/', [HotelController::class, 'roomsSearch']);
@@ -111,9 +110,7 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{property}/rooms', [HotelController::class, 'publicRooms']);
     Route::match(['get', 'post'], '/properties/{property}/reviews/', [ReviewController::class, 'propertyReviews']);
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
-
     Route::apiResource('bookings', BookingController::class)->parameters(['bookings' => 'id']);
-    Route::get('/bookings/calendar/', [BookingController::class, 'index']);
     Route::post('/bookings/inquiry/', [BookingController::class, 'inquiry']);
     Route::post('/bookings/confirm/', [BookingController::class, 'confirm']);
     Route::post('/bookings/{id}/cancel/', [BookingController::class, 'cancel']);
@@ -132,18 +129,17 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         Route::apiResource('posts', BlogPostController::class)->parameters(['posts' => 'post']);
     });
 
-    Route::apiResource('property-amenities', CrudController::class)->parameters(['property-amenities' => 'id']);
     imageRoutes('property-images');
-    // FUTURE: Channel Manager integration — disabled for MVP
-    // Route::apiResource('channel-manager-connections', CrudController::class)->parameters(['channel-manager-connections' => 'id']);
     Route::apiResource('room-types', CrudController::class)->parameters(['room-types' => 'id']);
     Route::get('/room-types/{id}/rates/', fn (int $id) => response()->json(['room_type' => $id, 'seasonal_prices' => []]));
     imageRoutes('room-type-images');
     Route::apiResource('room-prices', CrudController::class)->parameters(['room-prices' => 'id']);
-    Route::apiResource('room-amenities', CrudController::class)->parameters(['room-amenities' => 'id']);
     Route::apiResource('availability-blocks', CrudController::class)->parameters(['availability-blocks' => 'id']);
+    Route::apiResource('facility-categories', CrudController::class)->parameters(['facility-categories' => 'id']);
+    Route::apiResource('facilities', CrudController::class)->parameters(['facilities' => 'id']);
     Route::apiResource('service-categories', CrudController::class)->parameters(['service-categories' => 'id']);
     Route::apiResource('property-services', CrudController::class)->parameters(['property-services' => 'id']);
+    imageRoutes('facility-images');
     imageRoutes('service-images');
     Route::apiResource('audit-logs', CrudController::class)->parameters(['audit-logs' => 'id'])->only(['index', 'show']);
     Route::apiResource('contact-messages', CrudController::class)->parameters(['contact-messages' => 'id']);
@@ -160,14 +156,13 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         'admins' => User::class,
         'auth.users' => User::class,
         'auth.admins' => User::class,
-        'property-amenities' => HotelAmenity::class,
-        'channel-manager-connections' => ChannelManagerConnection::class,
         'room-types' => RoomType::class,
         'room-prices' => RoomPrice::class,
-        'room-amenities' => HotelAmenity::class,
         'availability-blocks' => AvailabilityBlock::class,
-        'service-categories' => ServiceCategory::class,
-        'property-services' => HotelService::class,
+        'facility-categories' => FacilityCategory::class,
+        'facilities' => Facility::class,
+        'service-categories' => FacilityCategory::class,
+        'property-services' => Facility::class,
         'audit-logs' => AuditLog::class,
         'contact-messages' => ContactMessage::class,
     ];
@@ -178,5 +173,5 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         }
     }
 
-    return new CrudController(HotelAmenity::class);
+    return new CrudController(Facility::class);
 });

@@ -7,18 +7,17 @@ use App\Models\AvailabilityBlock;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
 use App\Models\Currency;
-use App\Models\Favorite;
 use App\Models\ExchangeRate;
+use App\Models\Favorite;
+use App\Models\Facility;
+use App\Models\FacilityCategory;
+use App\Models\FacilityImage;
 use App\Models\Hotel;
-use App\Models\HotelAmenity;
 use App\Models\HotelImage;
-use App\Models\HotelService;
 use App\Models\Review;
 use App\Models\RoomPrice;
 use App\Models\RoomType;
 use App\Models\RoomTypeImage;
-use App\Models\ServiceCategory;
-use App\Models\ServiceImage;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
@@ -31,9 +30,8 @@ class AuditService
         Review::class => 'review',
         RoomType::class => 'room_type',
         RoomPrice::class => 'room_price',
-        HotelAmenity::class => 'hotel_amenity',
-        HotelService::class => 'hotel_service',
-        ServiceCategory::class => 'service_category',
+        Facility::class => 'facility',
+        FacilityCategory::class => 'facility_category',
         AvailabilityBlock::class => 'availability_block',
         ContactMessage::class => 'contact_message',
         Currency::class => 'currency',
@@ -41,7 +39,7 @@ class AuditService
         Favorite::class => 'favorite',
         HotelImage::class => 'hotel_image',
         RoomTypeImage::class => 'room_type_image',
-        ServiceImage::class => 'service_image',
+        FacilityImage::class => 'facility_image',
     ];
 
     public static function contentTypeFor(string $modelClass): string

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RoomType extends Model
@@ -38,5 +39,10 @@ class RoomType extends Model
     public function prices(): HasMany
     {
         return $this->hasMany(RoomPrice::class);
+    }
+
+    public function facilities(): BelongsToMany
+    {
+        return $this->belongsToMany(Facility::class, 'facility_room_type')->withTimestamps();
     }
 }
