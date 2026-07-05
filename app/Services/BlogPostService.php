@@ -18,6 +18,7 @@ class BlogPostService
     {
         $filtered = array_intersect_key($data, array_flip($this->dbColumns));
         $post = BlogPost::query()->create($filtered);
+        $this->flushLinkedHotelCache($post);
         AuditService::log('created', 'blog_post', $post);
 
         if (array_key_exists('faqs', $data)) {
@@ -31,11 +32,13 @@ class BlogPostService
     {
         $filtered = array_intersect_key($data, array_flip($this->dbColumns));
 
+        $oldHotelId = $post->hotel_id;
         $oldImage = $post->featured_image;
         $newImage = $filtered['featured_image'] ?? null;
 
         $changes = AuditService::changes($post, $filtered);
         $post->fill($filtered)->save();
+        $this->flushLinkedHotelCache($post, $oldHotelId);
         AuditService::log('updated', 'blog_post', $post, $changes);
 
         if (array_key_exists('faqs', $data)) {
@@ -53,9 +56,11 @@ class BlogPostService
     {
         $oldImage = $post->featured_image;
         $postId = $post->id;
+        $hotelId = $post->hotel_id;
 
         AuditService::log('deleted', 'blog_post', $post);
         $post->delete();
+        $this->flushLinkedHotelCache(null, $hotelId);
 
         $this->deleteImageIfUnused($oldImage, $postId);
     }
@@ -79,6 +84,13 @@ class BlogPostService
 
         if (! $isReferenced) {
             Storage::disk('public')->delete($storagePath);
+        }
+    }
+
+    private function flushLinkedHotelCache(?BlogPost $post = null, ?int $oldHotelId = null): void
+    {
+        foreach (array_filter([$oldHotelId, $post?->hotel_id]) as $hotelId) {
+            PublicHotelCache::flushHotel((int) $hotelId);
         }
     }
 

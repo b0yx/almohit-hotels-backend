@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Faq;
+use App\Models\Hotel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -44,6 +45,10 @@ class FaqService
                 Faq::query()->whereIn('id', $toDelete)->delete();
             }
         });
+
+        if ($parent instanceof Hotel) {
+            PublicHotelCache::flushHotel($parent);
+        }
     }
 
     private static function normalizeFaqData(array $faqData, int $index): array

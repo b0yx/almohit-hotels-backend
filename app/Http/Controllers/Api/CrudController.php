@@ -13,6 +13,7 @@ use App\Models\Review;
 use App\Models\RoomType;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\PublicHotelCache;
 use App\Support\CompatResponse;
 use App\Support\LocalizedMapper;
 use Illuminate\Database\Eloquent\Model;
@@ -258,6 +259,9 @@ class CrudController extends Controller
         $changes = AuditService::changes($model, $input);
         $model->fill($input)->save();
         $this->syncManyToMany($model, $request);
+        if ($model instanceof Facility) {
+            $model->hotels()->pluck('hotels.id')->each(fn ($hotelId) => PublicHotelCache::flushHotel((int) $hotelId));
+        }
 
         $fresh = $model->fresh($this->eagerLoads());
         AuditService::log('updated', AuditService::contentTypeFor($this->modelClass), $fresh, $changes);
@@ -277,6 +281,10 @@ class CrudController extends Controller
 
         if (in_array($this->modelClass, $this->modelsWithIcon(), true)) {
             $this->deleteStoredIcon($model->icon);
+        }
+
+        if ($model instanceof Facility) {
+            $model->hotels()->pluck('hotels.id')->each(fn ($hotelId) => PublicHotelCache::flushHotel((int) $hotelId));
         }
 
         AuditService::log('deleted', $contentType, $model);
@@ -311,21 +319,27 @@ class CrudController extends Controller
         if ($model instanceof Hotel) {
             if ($request->has('facility_ids')) {
                 $model->facilities()->sync($request->input('facility_ids', []));
+                PublicHotelCache::flushHotel($model);
             } elseif ($request->has('amenity_ids')) {
                 $model->facilities()->sync($request->input('amenity_ids', []));
+                PublicHotelCache::flushHotel($model);
             }
         }
 
         if ($model instanceof Facility) {
             if ($request->has('property_ids') || $request->has('hotel_ids')) {
+                $affectedHotelIds = $model->hotels()->pluck('hotels.id')->merge($request->input('property_ids', $request->input('hotel_ids', [])))->unique();
                 $model->hotels()->sync($request->input('property_ids', $request->input('hotel_ids', [])));
+                $affectedHotelIds->each(fn ($hotelId) => PublicHotelCache::flushHotel((int) $hotelId));
 
                 return;
             }
 
             $hotelIds = $request->input('properties', $request->input('hotels'));
             if (is_array($hotelIds)) {
+                $affectedHotelIds = $model->hotels()->pluck('hotels.id')->merge($hotelIds)->unique();
                 $model->hotels()->sync($hotelIds);
+                $affectedHotelIds->each(fn ($hotelId) => PublicHotelCache::flushHotel((int) $hotelId));
 
                 return;
             }
@@ -333,6 +347,7 @@ class CrudController extends Controller
             $hotelId = $request->input('property', $request->input('hotel_id'));
             if ($hotelId) {
                 $model->hotels()->syncWithoutDetaching([(int) $hotelId]);
+                PublicHotelCache::flushHotel((int) $hotelId);
             }
         }
     }

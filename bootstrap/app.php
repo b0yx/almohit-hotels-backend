@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateApiToken;
+use App\Http\Middleware\LogSlowApiResponse;
 use App\Http\Middleware\RequireRole;
 use App\Http\Middleware\ResolvePublicHotel;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('api', LogSlowApiResponse::class);
+
         $middleware->alias([
             'api.token' => AuthenticateApiToken::class,
             'tenant.context' => ResolvePublicHotel::class,

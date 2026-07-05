@@ -10,6 +10,7 @@ use App\Models\HotelImage;
 use App\Models\RoomType;
 use App\Models\RoomTypeImage;
 use App\Services\AuditService;
+use App\Services\PublicHotelCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -134,6 +135,7 @@ class ImageUploadController extends Controller
 
         $model = $cfg['model']::query()->create($data);
         $fresh = $model->fresh();
+        $this->flushPublicHotelCacheForImage($fresh, $cfg);
         AuditService::log('created', $this->contentType($cfg), $fresh, null, null, $data['caption'] ?? '');
 
         return response()->json($this->format($fresh, $cfg), 201);
@@ -195,6 +197,7 @@ class ImageUploadController extends Controller
         $changes = AuditService::changes($model, $data);
         $model->fill($data)->save();
         $fresh = $model->fresh();
+        $this->flushPublicHotelCacheForImage($fresh, $cfg);
         AuditService::log('updated', $this->contentType($cfg), $fresh, $changes);
 
         return response()->json($this->format($fresh, $cfg));
@@ -217,6 +220,7 @@ class ImageUploadController extends Controller
         }
 
         AuditService::log('deleted', $this->contentType($cfg), $model);
+        $this->flushPublicHotelCacheForImage($model, $cfg);
         $model->delete();
 
         return response()->json(null, 204);
@@ -262,6 +266,23 @@ class ImageUploadController extends Controller
             'facilities' => 'facility_image',
             default => 'image',
         };
+    }
+
+    private function flushPublicHotelCacheForImage($model, array $cfg): void
+    {
+        if ($cfg['model'] === HotelImage::class) {
+            PublicHotelCache::flushHotel((int) $model->hotel_id);
+
+            return;
+        }
+
+        if ($cfg['model'] === FacilityImage::class) {
+            $facility = Facility::query()
+                ->with('hotels:id')
+                ->find((int) $model->facility_id);
+
+            $facility?->hotels->each(fn (Hotel $hotel) => PublicHotelCache::flushHotel($hotel));
+        }
     }
 
     private function normalizeBooleans(Request $request, array $fields): array

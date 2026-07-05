@@ -39,7 +39,7 @@ if (! function_exists('imageRoutes')) {
     }
 }
 
-Route::middleware(['tenant.context', 'api.token'])->group(function () {
+Route::middleware(['tenant.context', 'api.token', 'throttle:api'])->group(function () {
     Route::get('/health/', function (): JsonResponse {
         $checks = [];
 
@@ -66,10 +66,12 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
             'app_env' => config('app.env'),
         ], $allOk ? 200 : 503);
     });
-    Route::get('/public/hotel-context/', [HotelController::class, 'publicContext']);
-    Route::get('/blog/posts/', [BlogPostController::class, 'publicIndex']);
-    Route::get('/blog/posts/{slug}/', [BlogPostController::class, 'publicShow']);
-    Route::apiResource('currencies', CurrencyController::class)->parameters(['currencies' => 'id'])->only(['index', 'show']);
+    Route::middleware('throttle:public-read')->group(function () {
+        Route::get('/public/hotel-context/', [HotelController::class, 'publicContext']);
+        Route::get('/blog/posts/', [BlogPostController::class, 'publicIndex']);
+        Route::get('/blog/posts/{slug}/', [BlogPostController::class, 'publicShow']);
+        Route::apiResource('currencies', CurrencyController::class)->parameters(['currencies' => 'id'])->only(['index', 'show']);
+    });
 
     Route::prefix('auth')->group(function () {
         Route::post('/signup/', [AuthController::class, 'signup'])->middleware('throttle:5,30');
@@ -93,8 +95,9 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
         });
     });
 
-    Route::get('/properties/available/', [HotelController::class, 'index']);
-    Route::apiResource('properties', HotelController::class)->parameters(['properties' => 'id']);
+    Route::get('/properties/available/', [HotelController::class, 'index'])->middleware('throttle:public-read');
+    Route::get('/properties/{id}/', [HotelController::class, 'show'])->whereNumber('id')->middleware('throttle:public-read')->name('properties.show');
+    Route::apiResource('properties', HotelController::class)->parameters(['properties' => 'id'])->except(['show']);
     Route::post('/properties/{id}/publish/', [HotelController::class, 'publish']);
     Route::post('/properties/{id}/unpublish/', [HotelController::class, 'unpublish']);
     Route::post('/properties/{id}/archive/', [HotelController::class, 'archive']);
@@ -104,14 +107,14 @@ Route::middleware(['tenant.context', 'api.token'])->group(function () {
     Route::get('/properties/{id}/faqs/{faq}/', [HotelController::class, 'faqShow']);
     Route::patch('/properties/{id}/autosave/', [HotelController::class, 'autosave']);
     Route::get('/properties/{id}/workspace/', [HotelController::class, 'workspace']);
-    Route::get('/properties/{id}/rooms/search/', [HotelController::class, 'roomsSearch']);
-    Route::get('/properties/{id}/availability/', [HotelController::class, 'availability']);
-    Route::get('/properties/{id}/rates/', [HotelController::class, 'rates']);
-    Route::get('/properties/{property}/rooms', [HotelController::class, 'publicRooms']);
+    Route::get('/properties/{id}/rooms/search/', [HotelController::class, 'roomsSearch'])->middleware('throttle:public-read');
+    Route::get('/properties/{id}/availability/', [HotelController::class, 'availability'])->middleware('throttle:public-read');
+    Route::get('/properties/{id}/rates/', [HotelController::class, 'rates'])->middleware('throttle:public-read');
+    Route::get('/properties/{property}/rooms', [HotelController::class, 'publicRooms'])->middleware('throttle:public-read');
     Route::match(['get', 'post'], '/properties/{property}/reviews/', [ReviewController::class, 'propertyReviews']);
     Route::get('/properties/{property}/reviews/summary/', [ReviewController::class, 'summary']);
     Route::apiResource('bookings', BookingController::class)->parameters(['bookings' => 'id']);
-    Route::post('/bookings/inquiry/', [BookingController::class, 'inquiry']);
+    Route::post('/bookings/inquiry/', [BookingController::class, 'inquiry'])->middleware('throttle:booking-write');
     Route::post('/bookings/confirm/', [BookingController::class, 'confirm']);
     Route::post('/bookings/{id}/cancel/', [BookingController::class, 'cancel']);
 

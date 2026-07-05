@@ -23,10 +23,15 @@ Set these in the Railway dashboard under your project's **Variables** tab.
 | `DB_DATABASE` | ✅ | *(Railway-provided)* | |
 | `DB_USERNAME` | ✅ | *(Railway-provided)* | |
 | `DB_PASSWORD` | ✅ | *(Railway-provided)* | |
-| `CACHE_STORE` | ✅ | `database` | `database` or `redis` |
+| `CACHE_STORE` | ✅ | `redis` | Use `redis` in production for public property cache speed |
 | `SESSION_DRIVER` | ✅ | `array` | API-only, no sessions needed |
 | `QUEUE_CONNECTION` | ✅ | `database` | |
 | `FILESYSTEM_DISK` | ✅ | `s3` | For production image storage |
+| `PUBLIC_CACHE_TTL` | ❌ | `600` | Seconds to cache public property responses |
+| `API_RATE_LIMIT_PER_MINUTE` | ❌ | `300` | Global API limit per user/IP |
+| `PUBLIC_READ_RATE_LIMIT_PER_MINUTE` | ❌ | `180` | Public read endpoint limit per user/IP |
+| `BOOKING_WRITE_RATE_LIMIT_PER_MINUTE` | ❌ | `10` | Booking inquiry limit per user/IP |
+| `SLOW_API_LOG_THRESHOLD_MS` | ❌ | `500` | Logs API requests slower than this; set `0` to disable |
 | `NIXPACKS_PHP_ROOT_DIR` | ✅ | `/app/public` | Required for Laravel — Nixpacks needs to serve from `public/` |
 | `LOG_CHANNEL` | ❌ | `stderr` | Defaults to `stack`, Railway captures stderr |
 | `LOG_LEVEL` | ❌ | `warning` | Defaults to `debug` |
@@ -126,5 +131,5 @@ Expected response:
 ### Scaling Considerations
 
 - **Queue workers:** For production, add a separate service running `php artisan queue:work` for async email/image processing
-- **Redis:** Switch `CACHE_STORE` to `redis` for better performance
+- **Redis:** Keep `CACHE_STORE=redis` for faster public property caching and rate limiting
 - **CDN:** Point `AWS_URL` to a CloudFront/CDN distribution for image delivery

@@ -8,6 +8,7 @@ use App\Models\HotelPolicy;
 use App\Models\RoomType;
 use App\Services\AuditService;
 use App\Services\FaqService;
+use App\Services\PublicHotelCache;
 use App\Support\CompatResponse;
 use App\Support\LocalizedMapper;
 use Illuminate\Http\JsonResponse;
@@ -101,7 +102,11 @@ class HotelController extends CrudController
             $hotel = $query->first();
 
             if ($hotel) {
-                return response()->json(CompatResponse::hotel($hotel));
+                $payload = $user
+                    ? CompatResponse::hotel($hotel)
+                    : PublicHotelCache::rememberHotel($id, fn () => CompatResponse::hotel($hotel));
+
+                return response()->json($payload);
             }
 
             return response()->json(['detail' => 'Hotel not found.'], 404);
@@ -125,6 +130,7 @@ class HotelController extends CrudController
 
         $validated = $this->validateHotelPayload($request, $id);
         $hotel = Hotel::query()->findOrFail($id);
+        $oldSubdomain = $hotel->subdomain;
         $data = $this->normalizeInput($validated);
         $data = LocalizedMapper::mapInputForSave(Hotel::class, $data, null, true);
         if (array_key_exists('video_url', $data) && $data['video_url'] === null) {
@@ -144,6 +150,8 @@ class HotelController extends CrudController
         FaqService::syncFaqs($hotel, $faqsData);
 
         $fresh = $hotel->fresh($this->hotelEagerLoads());
+        PublicHotelCache::flushHotel($fresh);
+        PublicHotelCache::flushSubdomain($oldSubdomain);
         AuditService::log('updated', 'hotel', $fresh, $changes);
 
         return response()->json(CompatResponse::hotel($fresh));
@@ -213,6 +221,7 @@ class HotelController extends CrudController
         FaqService::syncFaqs($hotel, $faqsData);
 
         $fresh = $hotel->fresh($this->hotelEagerLoads());
+        PublicHotelCache::flushHotel($fresh);
         AuditService::log('created', 'hotel', $fresh);
 
         return response()->json(CompatResponse::hotel($fresh), 201);
@@ -228,6 +237,7 @@ class HotelController extends CrudController
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
         $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
+        PublicHotelCache::flushHotel($hotel);
 
         AuditService::log('published', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'published']]);
 
@@ -244,6 +254,7 @@ class HotelController extends CrudController
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
         $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
+        PublicHotelCache::flushHotel($hotel);
 
         AuditService::log('unpublished', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
@@ -260,6 +271,7 @@ class HotelController extends CrudController
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
         $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
+        PublicHotelCache::flushHotel($hotel);
 
         AuditService::log('archived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'archived']]);
 
@@ -276,6 +288,7 @@ class HotelController extends CrudController
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
         $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
+        PublicHotelCache::flushHotel($hotel);
 
         AuditService::log('unarchived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
@@ -568,6 +581,7 @@ class HotelController extends CrudController
 
         $hotel->images()->update(['is_cover' => false]);
         $image->refresh()->forceFill(['is_cover' => true])->save();
+        PublicHotelCache::flushHotel($hotel);
     }
 
     public function autosave(Request $request, int $id): JsonResponse
@@ -738,11 +752,17 @@ class HotelController extends CrudController
     {
         $hotel = $request->attributes->get('public_hotel');
 
-        return response()->json([
+        $payload = fn () => [
             'subdomain' => $request->attributes->get('public_hotel_subdomain'),
             'status' => $request->attributes->get('public_hotel_status'),
             'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing(['images', 'faqs', 'facilities.category', 'facilities.images', 'publicBlogPosts.category'])) : null,
-        ]);
+        ];
+
+        if (! $request->user() && $hotel) {
+            return response()->json(PublicHotelCache::rememberContext((string) $hotel->subdomain, $payload));
+        }
+
+        return response()->json($payload());
     }
 
     public function faqShow(Request $request, int $id, string $faq): JsonResponse

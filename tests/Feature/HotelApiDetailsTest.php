@@ -159,4 +159,34 @@ class HotelApiDetailsTest extends TestCase
             ->assertJsonPath('facility_ids', [$facility->id])
             ->assertJsonPath('amenities.0.id', $facility->id);
     }
+
+    public function test_public_property_cache_is_cleared_after_property_update(): void
+    {
+        $headers = $this->adminHeaders();
+        $hotel = Hotel::query()->create([
+            'name' => 'Cached Property',
+            'slug' => 'cached-property',
+            'subdomain' => 'cached',
+            'property_type' => 'hotel',
+            'country' => 'Yemen',
+            'city' => 'Aden',
+            'address' => 'Cache Street',
+            'stars' => 4,
+            'details' => 'Old public details',
+            'publishing_status' => 'published',
+            'is_active' => true,
+        ]);
+
+        $this->getJson('/api/properties/'.$hotel->id.'/')
+            ->assertOk()
+            ->assertJsonPath('details', 'Old public details');
+
+        $this->patchJson('/api/properties/'.$hotel->id.'/', [
+            'details' => 'Fresh public details',
+        ], $headers)->assertOk();
+
+        $this->getJson('/api/properties/'.$hotel->id.'/')
+            ->assertOk()
+            ->assertJsonPath('details', 'Fresh public details');
+    }
 }
