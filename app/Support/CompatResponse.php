@@ -131,7 +131,8 @@ class CompatResponse
         $socialMedia = $hotel->relationLoaded('socialMedia') ? $hotel->socialMedia : null;
         $contacts = $hotel->relationLoaded('contacts') ? $hotel->contacts : null;
         $setupStatus = $hotel->relationLoaded('setupStatus') ? $hotel->setupStatus : null;
-        $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : [];
+        $images = $hotel->relationLoaded('images') ? self::sortGalleryImages($hotel->images)->map(fn ($i) => self::genericAlias($i, ['property' => 'hotel_id']))->values() : collect();
+        $facilities = $hotel->relationLoaded('facilities') ? $hotel->facilities->map(fn (Facility $facility) => self::facility($facility))->values() : collect();
         $readinessErrors = self::computeReadinessErrors($hotel);
         $faqs = self::hotelFaqs($hotel);
 
@@ -170,6 +171,9 @@ class CompatResponse
             'cover_image_url' => $cover?->image,
             'average_rating' => $avgRating,
             'total_reviews' => $totalReviews,
+            'facility_ids' => $facilities->pluck('id')->values(),
+            'facilities' => $facilities,
+            'amenities' => $facilities,
             'images' => $images,
             'faqs' => $faqs,
             'faq_schema' => self::faqSchema($faqs),
@@ -347,6 +351,12 @@ class CompatResponse
 
         $data = array_merge($data, [
             'category_name' => $facility->category?->name,
+            'property_ids' => $facility->relationLoaded('hotels') ? $facility->hotels->pluck('id')->values() : [],
+            'properties' => $facility->relationLoaded('hotels') ? $facility->hotels->map(fn (Hotel $hotel) => [
+                'id' => $hotel->id,
+                'name' => $hotel->name,
+                'slug' => $hotel->slug,
+            ])->values() : [],
             'cover_image_url' => null,
             'images' => $facility->relationLoaded('images') ? self::sortGalleryImages($facility->images)->map(fn ($i) => self::genericAlias($i, ['facility' => 'facility_id']))->values() : [],
         ]);

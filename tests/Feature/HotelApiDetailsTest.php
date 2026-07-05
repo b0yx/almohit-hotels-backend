@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Facility;
 use App\Models\FacilityCategory;
+use App\Models\Hotel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -114,5 +115,48 @@ class HotelApiDetailsTest extends TestCase
         ]);
         $this->assertDatabaseMissing('facility_hotel', ['hotel_id' => $hotelId, 'facility_id' => $oldFacility->id]);
         $this->assertDatabaseHas('facility_hotel', ['hotel_id' => $hotelId, 'facility_id' => $newFacility->id]);
+    }
+
+    public function test_facility_can_be_attached_to_multiple_properties(): void
+    {
+        $headers = $this->adminHeaders();
+        $firstHotel = Hotel::query()->create([
+            'name' => 'First Property',
+            'slug' => 'first-property',
+            'property_type' => 'hotel',
+            'country' => 'Yemen',
+            'city' => 'Aden',
+            'address' => 'First Street',
+            'stars' => 4,
+        ]);
+        $secondHotel = Hotel::query()->create([
+            'name' => 'Second Property',
+            'slug' => 'second-property',
+            'property_type' => 'hotel',
+            'country' => 'Oman',
+            'city' => 'Muscat',
+            'address' => 'Second Street',
+            'stars' => 5,
+        ]);
+
+        $facility = Facility::query()->create([
+            'name' => 'Shared Pool',
+            'slug' => 'shared-pool',
+        ]);
+
+        $this->patchJson('/api/facilities/'.$facility->id.'/', [
+            'property_ids' => [$firstHotel->id, $secondHotel->id],
+        ], $headers)
+            ->assertOk()
+            ->assertJsonPath('property_ids', [$firstHotel->id, $secondHotel->id])
+            ->assertJsonCount(2, 'properties');
+
+        $this->assertDatabaseHas('facility_hotel', ['hotel_id' => $firstHotel->id, 'facility_id' => $facility->id]);
+        $this->assertDatabaseHas('facility_hotel', ['hotel_id' => $secondHotel->id, 'facility_id' => $facility->id]);
+
+        $this->getJson('/api/properties/'.$firstHotel->id.'/', $headers)
+            ->assertOk()
+            ->assertJsonPath('facility_ids', [$facility->id])
+            ->assertJsonPath('amenities.0.id', $facility->id);
     }
 }

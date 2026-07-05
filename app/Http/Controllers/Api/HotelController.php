@@ -22,6 +22,11 @@ class HotelController extends CrudController
         parent::__construct(Hotel::class);
     }
 
+    private function hotelEagerLoads(): array
+    {
+        return ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs', 'facilities.category', 'facilities.images'];
+    }
+
     private function authorizeStaffHotelAccess(Request $request, int $hotelId): void
     {
         $user = $request->user();
@@ -84,7 +89,7 @@ class HotelController extends CrudController
             }
 
             $query = Hotel::query()
-                ->with(['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])
+                ->with($this->hotelEagerLoads())
                 ->whereKey($id)
                 ->where('is_active', true)
                 ->where('publishing_status', 'published');
@@ -104,7 +109,7 @@ class HotelController extends CrudController
 
         $this->authorizeStaffHotelAccess($request, $id);
 
-        $query = Hotel::query()->with(['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
+        $query = Hotel::query()->with($this->hotelEagerLoads());
         if ($user) {
             $query->withExists(['favorites as is_favorite' => fn ($q) => $q->where('user_id', $user->id)]);
         }
@@ -127,6 +132,7 @@ class HotelController extends CrudController
         }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
+        unset($data['facility_ids'], $data['amenity_ids']);
         $nested = $this->extractNestedHotelPayload($data);
         $faqsData = array_key_exists('faqs', $data) ? $data['faqs'] : null;
         unset($data['faqs']);
@@ -137,7 +143,7 @@ class HotelController extends CrudController
         $this->syncCoverImage($hotel, $coverImageId);
         FaqService::syncFaqs($hotel, $faqsData);
 
-        $fresh = $hotel->fresh(['images', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
+        $fresh = $hotel->fresh($this->hotelEagerLoads());
         AuditService::log('updated', 'hotel', $fresh, $changes);
 
         return response()->json(CompatResponse::hotel($fresh));
@@ -154,7 +160,7 @@ class HotelController extends CrudController
 
     public function index(Request $request): JsonResponse
     {
-        $query = Hotel::query()->with(['images', 'policy', 'faqs']);
+        $query = Hotel::query()->with(['images', 'policy', 'faqs', 'facilities.category', 'facilities.images']);
         $user = $request->user();
         $publicHotel = $request->attributes->get('public_hotel');
 
@@ -193,6 +199,7 @@ class HotelController extends CrudController
         }
         $coverImageId = $data['cover_image_id'] ?? null;
         unset($data['cover_image_id']);
+        unset($data['facility_ids'], $data['amenity_ids']);
         $nested = $this->extractNestedHotelPayload($data);
         $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? $data['name_ar'] ?? Str::random(8));
         $data['publishing_status'] = $data['publishing_status'] ?? 'draft';
@@ -205,7 +212,7 @@ class HotelController extends CrudController
         $this->syncCoverImage($hotel, $coverImageId);
         FaqService::syncFaqs($hotel, $faqsData);
 
-        $fresh = $hotel->fresh(['images', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs']);
+        $fresh = $hotel->fresh($this->hotelEagerLoads());
         AuditService::log('created', 'hotel', $fresh);
 
         return response()->json(CompatResponse::hotel($fresh), 201);
@@ -220,7 +227,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'published', 'is_active' => true, 'published_at' => $hotel->published_at ?: now()])->save();
-        $hotel->load(['images', 'faqs']);
+        $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
 
         AuditService::log('published', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'published']]);
 
@@ -236,7 +243,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'published_at' => null])->save();
-        $hotel->load(['images', 'faqs']);
+        $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
 
         AuditService::log('unpublished', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
@@ -252,7 +259,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'archived', 'is_active' => false, 'published_at' => null])->save();
-        $hotel->load(['images', 'faqs']);
+        $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
 
         AuditService::log('archived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'archived']]);
 
@@ -268,7 +275,7 @@ class HotelController extends CrudController
         $hotel = Hotel::query()->findOrFail($id);
         $oldStatus = $hotel->publishing_status;
         $hotel->forceFill(['publishing_status' => 'draft', 'is_active' => true])->save();
-        $hotel->load(['images', 'faqs']);
+        $hotel->load(['images', 'faqs', 'facilities.category', 'facilities.images']);
 
         AuditService::log('unarchived', 'hotel', $hotel, ['publishing_status' => ['old' => $oldStatus, 'new' => 'draft']]);
 
@@ -365,7 +372,9 @@ class HotelController extends CrudController
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'facility_ids' => ['sometimes', 'array'],
-            'facility_ids.*' => ['integer'],
+            'facility_ids.*' => ['integer', 'exists:facilities,id'],
+            'amenity_ids' => ['sometimes', 'array'],
+            'amenity_ids.*' => ['integer', 'exists:facilities,id'],
             'policy' => ['sometimes', 'array'],
             'policy.cancellation_policy' => ['nullable', 'string'],
             'policy.children_policy' => ['nullable', 'string'],
@@ -568,7 +577,7 @@ class HotelController extends CrudController
         }
 
         $this->update($request, $id);
-        $hotel = Hotel::query()->with(['policy', 'contacts', 'socialMedia', 'setupStatus', 'images', 'reviews', 'faqs'])->findOrFail($id);
+        $hotel = Hotel::query()->with($this->hotelEagerLoads())->findOrFail($id);
         $setup = $hotel->setupStatus;
 
         if ($setup && $request->has('last_completed_step')) {
@@ -595,7 +604,7 @@ class HotelController extends CrudController
             return $error;
         }
 
-        $hotel = Hotel::query()->with(['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'])->findOrFail($id);
+        $hotel = Hotel::query()->with($this->hotelEagerLoads())->findOrFail($id);
 
         return response()->json([
             'property' => CompatResponse::hotel($hotel),
@@ -732,7 +741,7 @@ class HotelController extends CrudController
         return response()->json([
             'subdomain' => $request->attributes->get('public_hotel_subdomain'),
             'status' => $request->attributes->get('public_hotel_status'),
-            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing(['images', 'faqs'])) : null,
+            'property' => $hotel ? CompatResponse::hotel($hotel->loadMissing(['images', 'faqs', 'facilities.category', 'facilities.images'])) : null,
         ]);
     }
 
@@ -742,7 +751,7 @@ class HotelController extends CrudController
             return $error;
         }
 
-        $hotel = Hotel::query()->with(['images', 'faqs'])->findOrFail($id);
+        $hotel = Hotel::query()->with(['images', 'faqs', 'facilities.category', 'facilities.images'])->findOrFail($id);
         $user = $request->user();
 
         if (! $user || (! $user->isAdmin() && ! $user->isStaffRole())) {

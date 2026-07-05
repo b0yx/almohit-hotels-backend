@@ -121,7 +121,7 @@ class CrudController extends Controller
         $model = $this->modelClass::query()->create($this->prepareModelInput($request));
         $this->syncManyToMany($model, $request);
 
-        $fresh = $model->fresh();
+        $fresh = $model->fresh($this->eagerLoads());
         AuditService::log('created', AuditService::contentTypeFor($this->modelClass), $fresh);
 
         return response()->json(CompatResponse::item($fresh), 201);
@@ -160,7 +160,7 @@ class CrudController extends Controller
         }
 
         if ($this->modelClass === \App\Models\Facility::class) {
-            unset($data['hotel_id']);
+            unset($data['hotel_id'], $data['property_ids'], $data['hotel_ids'], $data['properties'], $data['hotels']);
             if (array_key_exists('service_category_id', $data)) {
                 $data['facility_category_id'] = $data['service_category_id'];
                 unset($data['service_category_id']);
@@ -207,9 +207,9 @@ class CrudController extends Controller
     {
         return match ($this->modelClass) {
             RoomType::class => ['images', 'prices'],
-            Facility::class => ['images', 'category'],
+            Facility::class => ['images', 'category', 'hotels'],
             BookingInquiry::class => ['hotel', 'roomType', 'guests', 'bookingCurrency'],
-            Hotel::class => ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs'],
+            Hotel::class => ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs', 'facilities.category', 'facilities.images'],
             default => [],
         };
     }
@@ -259,7 +259,7 @@ class CrudController extends Controller
         $model->fill($input)->save();
         $this->syncManyToMany($model, $request);
 
-        $fresh = $model->fresh();
+        $fresh = $model->fresh($this->eagerLoads());
         AuditService::log('updated', AuditService::contentTypeFor($this->modelClass), $fresh, $changes);
 
         return response()->json(CompatResponse::item($fresh));
@@ -317,6 +317,19 @@ class CrudController extends Controller
         }
 
         if ($model instanceof Facility) {
+            if ($request->has('property_ids') || $request->has('hotel_ids')) {
+                $model->hotels()->sync($request->input('property_ids', $request->input('hotel_ids', [])));
+
+                return;
+            }
+
+            $hotelIds = $request->input('properties', $request->input('hotels'));
+            if (is_array($hotelIds)) {
+                $model->hotels()->sync($hotelIds);
+
+                return;
+            }
+
             $hotelId = $request->input('property', $request->input('hotel_id'));
             if ($hotelId) {
                 $model->hotels()->syncWithoutDetaching([(int) $hotelId]);
