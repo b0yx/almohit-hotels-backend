@@ -9,7 +9,4 @@ return [
     'frontend_home_url' => env('FRONTEND_HOME_URL', '/'),
     'frontend_admin_url' => env('FRONTEND_ADMIN_URL', '/admin/'),
     'frontend_customer_url' => env('FRONTEND_CUSTOMER_URL', '/profile/'),
-    'frontend_public_url' => rtrim(env('FRONTEND_PUBLIC_URL', env('FRONTEND_HOME_URL', '/')), '/'),
-    'public_hotel_url_mode' => env('PUBLIC_HOTEL_URL_MODE', 'path'),
-    'public_hotel_path_prefix' => trim(env('PUBLIC_HOTEL_PATH_PREFIX', 'properties'), '/'),
 ];

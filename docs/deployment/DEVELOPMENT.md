@@ -49,9 +49,6 @@ All variables read from `.env` (see `.env.example`):
 | `FRONTEND_ADMIN_URL` | `http://localhost:3000/admin/` | Admin redirect after login |
 | `FRONTEND_CUSTOMER_URL` | `http://localhost:3000/profile/` | Customer redirect after login |
 | `FRONTEND_OWNER_URL` | `http://localhost:3000/owner/` | Owner dashboard URL |
-| `FRONTEND_PUBLIC_URL` | `https://your-frontend.com` | Public frontend base used for property view links |
-| `PUBLIC_HOTEL_URL_MODE` | `path` | `path` uses `/properties/{slug}/`; `subdomain` uses `{subdomain}.{PUBLIC_BASE_DOMAIN}` |
-| `PUBLIC_HOTEL_PATH_PREFIX` | `properties` | Public property path prefix |
 | `SESSION_DRIVER` | `database` | Session storage driver |
 | `SESSION_DOMAIN` | `null` | Session cookie domain |
 | `SESSION_LIFETIME` | `120` | Session lifetime in minutes |

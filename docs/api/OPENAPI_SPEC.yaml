@@ -112,9 +112,6 @@ components:
         name_ar: { type: string, nullable: true }
         slug: { type: string }
         subdomain: { type: string }
-        public_url: { type: string, nullable: true }
-        public_path_url: { type: string, nullable: true }
-        public_subdomain_url: { type: string, nullable: true }
         property_type: { type: string, default: hotel }
         country: { type: string }
         city: { type: string }

@@ -215,18 +215,6 @@
                     "subdomain": {
                         "type": "string"
                     },
-                    "public_url": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "public_path_url": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "public_subdomain_url": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "property_type": {
                         "type": "string",
                         "default": "hotel"
