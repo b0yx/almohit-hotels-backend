@@ -17,7 +17,7 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000'))))),
+    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', ''))))),
 
     'allowed_headers' => ['Content-Type', 'Authorization', 'X-Hotel-Subdomain', 'X-Requested-With', 'Accept', 'X-Locale'],
 

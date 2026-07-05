@@ -242,7 +242,6 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         'auth.users' => User::class,
         'auth.admins' => User::class,
         'property-amenities' => HotelAmenity::class,
-        'channel-manager-connections' => ChannelManagerConnection::class,
         'room-types' => RoomType::class,
         'room-prices' => RoomPrice::class,
         'room-amenities' => HotelAmenity::class,
@@ -403,7 +402,6 @@ All routes are defined in `routes/api.php`. Total of **~60+ API endpoints**, all
 |---|---|---|
 | `GET/POST` | `/api/bookings/` | List/create bookings |
 | `GET/PUT/PATCH/DELETE` | `/api/bookings/{id}/` | Show/update/delete booking |
-| `GET` | `/api/bookings/calendar/` | Booking calendar (same as index) |
 | `POST` | `/api/bookings/inquiry/` | Submit booking inquiry |
 | `POST` | `/api/bookings/confirm/` | Confirm booking |
 | `POST` | `/api/bookings/{id}/cancel/` | Cancel booking |
@@ -418,7 +416,6 @@ All routes are defined in `routes/api.php`. Total of **~60+ API endpoints**, all
 | Prefix | Model |
 |---|---|
 | `/api/property-amenities/` | HotelAmenity |
-| `/api/channel-manager-connections/` | ChannelManagerConnection |
 | `/api/room-types/` | RoomType |
 | `/api/room-prices/` | RoomPrice |
 | `/api/room-amenities/` | HotelAmenity |
