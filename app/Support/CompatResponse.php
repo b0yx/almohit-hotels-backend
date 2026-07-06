@@ -2,11 +2,11 @@
 
 namespace App\Support;
 
-use App\Models\BookingInquiry;
 use App\Models\BlogPost;
-use App\Models\Facility;
+use App\Models\BookingInquiry;
 use App\Models\Currency;
 use App\Models\ExchangeRate;
+use App\Models\Facility;
 use App\Models\Faq;
 use App\Models\Favorite;
 use App\Models\Hotel;
@@ -359,10 +359,18 @@ class CompatResponse
             $coverImageUrl = $cover?->image;
         }
 
+        $facilities = $room->relationLoaded('facilities')
+            ? $room->facilities->map(fn (Facility $facility) => self::facility($facility))->values()
+            : collect();
+
         $data = array_merge(self::genericAlias($room, ['property' => 'hotel_id']), [
             'cover_image_url' => $coverImageUrl,
             'images' => $room->relationLoaded('images') ? self::sortGalleryImages($room->images)->map(fn ($i) => self::generic($i))->values() : [],
             'prices' => $room->relationLoaded('prices') ? $room->prices->map(fn ($p) => self::generic($p))->values() : [],
+            'facility_ids' => $facilities->pluck('id')->values(),
+            'amenity_ids' => $facilities->pluck('id')->values(),
+            'facility_details' => $facilities,
+            'amenity_details' => $facilities,
         ]);
 
         return LocalizedMapper::mapOutput($room, $data);

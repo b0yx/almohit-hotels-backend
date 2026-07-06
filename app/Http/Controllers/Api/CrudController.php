@@ -175,6 +175,10 @@ class CrudController extends Controller
             }
         }
 
+        if ($this->modelClass === RoomType::class) {
+            unset($data['facility_ids'], $data['amenity_ids'], $data['prices']);
+        }
+
         if (in_array($this->modelClass, $this->modelsWithIcon(), true)) {
             $data = $this->applyIconUpload($request, $data, $existing);
         }
@@ -214,7 +218,7 @@ class CrudController extends Controller
     protected function eagerLoads(): array
     {
         return match ($this->modelClass) {
-            RoomType::class => ['images', 'prices'],
+            RoomType::class => ['images', 'prices', 'facilities.category'],
             Facility::class => ['images', 'category', 'hotels'],
             BookingInquiry::class => ['hotel', 'roomType', 'guests', 'bookingCurrency'],
             Hotel::class => ['images', 'reviews', 'policy', 'socialMedia', 'contacts', 'setupStatus', 'faqs', 'facilities.category', 'facilities.images'],
@@ -330,6 +334,14 @@ class CrudController extends Controller
             } elseif ($request->has('amenity_ids')) {
                 $model->facilities()->sync($request->input('amenity_ids', []));
                 PublicHotelCache::flushHotel($model);
+            }
+        }
+
+        if ($model instanceof RoomType) {
+            if ($request->has('facility_ids')) {
+                $model->facilities()->sync($request->input('facility_ids', []));
+            } elseif ($request->has('amenity_ids')) {
+                $model->facilities()->sync($request->input('amenity_ids', []));
             }
         }
 
