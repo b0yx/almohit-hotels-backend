@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\BedType;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
 use App\Models\Facility;
@@ -108,7 +109,13 @@ class CrudController extends Controller
         foreach ($this->eagerLoads() as $relation) {
             $query->with($relation);
         }
-        $page = $query->latest('id')->paginate((int) $request->query('page_size', 20));
+        if ($this->modelClass === BedType::class) {
+            $query->orderBy('display_order')->orderBy('name')->orderBy('id');
+        } else {
+            $query->latest('id');
+        }
+
+        $page = $query->paginate((int) $request->query('page_size', 20));
 
         return response()->json(CompatResponse::page($page));
     }
@@ -160,7 +167,7 @@ class CrudController extends Controller
             }
         }
 
-        if ($this->modelClass === \App\Models\Facility::class) {
+        if ($this->modelClass === Facility::class) {
             unset($data['hotel_id'], $data['property_ids'], $data['hotel_ids'], $data['properties'], $data['hotels']);
             if (array_key_exists('service_category_id', $data)) {
                 $data['facility_category_id'] = $data['service_category_id'];
@@ -379,6 +386,7 @@ class CrudController extends Controller
                 }
                 if ($this->modelClass === Facility::class && $param === 'property') {
                     $query->whereHas('hotels', fn ($q) => $q->whereKey($value));
+
                     continue;
                 }
                 $query->where($column, $value);

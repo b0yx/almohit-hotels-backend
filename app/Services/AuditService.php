@@ -4,14 +4,15 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
+use App\Models\BedType;
 use App\Models\BookingInquiry;
 use App\Models\ContactMessage;
 use App\Models\Currency;
 use App\Models\ExchangeRate;
-use App\Models\Favorite;
 use App\Models\Facility;
 use App\Models\FacilityCategory;
 use App\Models\FacilityImage;
+use App\Models\Favorite;
 use App\Models\Hotel;
 use App\Models\HotelImage;
 use App\Models\Review;
@@ -28,6 +29,7 @@ class AuditService
         Hotel::class => 'hotel',
         BookingInquiry::class => 'booking',
         Review::class => 'review',
+        BedType::class => 'bed_type',
         RoomType::class => 'room_type',
         RoomPrice::class => 'room_price',
         Facility::class => 'facility',
