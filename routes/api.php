@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ImageUploadController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Models\AuditLog;
 use App\Models\AvailabilityBlock;
+use App\Models\BedType;
 use App\Models\ContactMessage;
 use App\Models\Facility;
 use App\Models\FacilityCategory;
@@ -133,6 +134,7 @@ Route::middleware(['tenant.context', 'api.token', 'throttle:api'])->group(functi
     });
 
     imageRoutes('property-images');
+    Route::apiResource('bed-types', CrudController::class)->parameters(['bed-types' => 'id']);
     Route::apiResource('room-types', CrudController::class)->parameters(['room-types' => 'id']);
     Route::get('/room-types/{id}/rates/', fn (int $id) => response()->json(['room_type' => $id, 'seasonal_prices' => []]));
     imageRoutes('room-type-images');
@@ -159,6 +161,7 @@ app()->bind(CrudController::class, function ($app, array $params = []) {
         'admins' => User::class,
         'auth.users' => User::class,
         'auth.admins' => User::class,
+        'bed-types' => BedType::class,
         'room-types' => RoomType::class,
         'room-prices' => RoomPrice::class,
         'availability-blocks' => AvailabilityBlock::class,

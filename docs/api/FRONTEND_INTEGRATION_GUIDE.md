@@ -330,6 +330,8 @@ Arabic policy fields are nested inside `policy` when creating/updating a hotel.
 
 ### Room Types
 
+Room type forms should load bed options from `GET /api/bed-types/?is_active=true` instead of hardcoding the select list. Staff/admin users can manage the options with `POST /api/bed-types/`, `PATCH /api/bed-types/{id}/`, and `DELETE /api/bed-types/{id}/`. The selected room type still sends `bed_type` as the option name string for backward compatibility.
+
 | English Field | Arabic Field | Nullable | Frontend Should Send | Frontend Should Display |
 |---|---|---:|---:|---:|
 | `name` | `name_ar` | Yes | Yes, in room type forms | Yes |

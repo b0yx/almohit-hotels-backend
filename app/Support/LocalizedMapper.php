@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\BedType;
 use App\Models\BlogPost;
 use App\Models\Hotel;
 use App\Models\HotelPolicy;
@@ -13,6 +14,7 @@ class LocalizedMapper
 {
     private static array $modelFieldMap = [
         Hotel::class => ['name', 'description', 'short_description', 'meta_title', 'meta_description'],
+        BedType::class => ['name'],
         RoomType::class => ['name', 'description'],
         HotelService::class => ['name', 'short_description', 'description'],
         HotelPolicy::class => ['cancellation_policy', 'children_policy', 'pet_policy', 'smoking_policy', 'extra_bed_policy', 'age_restriction', 'accepted_payment_methods'],

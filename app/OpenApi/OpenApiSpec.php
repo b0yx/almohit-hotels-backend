@@ -188,6 +188,22 @@ class OpenApiSpec
     )]
     private $HotelPolicy;
 
+    // ─── Schema: BedType ────────────────────────────────
+    #[OA\Schema(
+        schema: 'BedType',
+        type: 'object',
+        properties: [
+            new OA\Property(property: 'id', type: 'integer', nullable: false),
+            new OA\Property(property: 'name', type: 'string', nullable: false),
+            new OA\Property(property: 'name_ar', type: 'string', nullable: true),
+            new OA\Property(property: 'display_order', type: 'integer', nullable: false),
+            new OA\Property(property: 'is_active', type: 'boolean', nullable: false),
+            new OA\Property(property: 'created_at', type: 'string', nullable: false),
+            new OA\Property(property: 'updated_at', type: 'string', nullable: false),
+        ]
+    )]
+    private $BedType;
+
     // ─── Schema: RoomType ────────────────────────────────
     #[OA\Schema(
         schema: 'RoomType',
@@ -1571,6 +1587,82 @@ Admin: Any booking.
         ]
     )]
     public function route_61() {}
+
+    // ─── Endpoint: Get /api/bed-types/ ──────────────────────────
+    #[OA\Get(
+        path: '/api/bed-types/',
+        summary: 'List bed types',
+        description: 'List dynamic bed type options for room type forms.',
+        tags: ['Rooms'],
+        security: [['BearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'is_active', in: 'query', required: false, description: '', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'search', in: 'query', required: false, description: '', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page_size', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: '200',
+                description: 'Paginated bed types'
+            ),
+        ]
+    )]
+    public function route_bed_types_index() {}
+
+    // ─── Endpoint: Post /api/bed-types/ ──────────────────────────
+    #[OA\Post(
+        path: '/api/bed-types/',
+        summary: 'Create a bed type (admin/staff)',
+        description: '',
+        tags: ['Rooms'],
+        security: [['BearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: '201',
+                description: 'Bed type created'
+            ),
+        ]
+    )]
+    public function route_bed_types_store() {}
+
+    // ─── Endpoint: Patch /api/bed-types/{id}/ ──────────────────────────
+    #[OA\Patch(
+        path: '/api/bed-types/{id}/',
+        summary: 'Update a bed type (admin/staff)',
+        description: '',
+        tags: ['Rooms'],
+        security: [['BearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: '', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(
+                response: '200',
+                description: 'Bed type updated'
+            ),
+        ]
+    )]
+    public function route_bed_types_update() {}
+
+    // ─── Endpoint: Delete /api/bed-types/{id}/ ──────────────────────────
+    #[OA\Delete(
+        path: '/api/bed-types/{id}/',
+        summary: 'Delete a bed type (admin/staff)',
+        description: '',
+        tags: ['Rooms'],
+        security: [['BearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: '', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(
+                response: '204',
+                description: 'Bed type deleted'
+            ),
+        ]
+    )]
+    public function route_bed_types_destroy() {}
 
     // ─── Endpoint: Get /api/room-types/ ──────────────────────────
     #[OA\Get(
